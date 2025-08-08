@@ -422,17 +422,24 @@ window.addEventListener("message", (event) => {
   if (event.data.source === "penpot") {
     document.body.dataset.theme = event.data.theme;
   } else if (event.data.type === "base-color") {
+    console.log('Received base color from plugin:', event.data.color);
     if (event.data.color) {
-      pluginState.baseColor = hexToOklch(event.data.color);
-      pluginState.isNodeSelected = true;
-      colorPicker.value = event.data.color;
+      try {
+        pluginState.baseColor = hexToOklch(event.data.color);
+        pluginState.isNodeSelected = true;
+        colorPicker.value = event.data.color;
 
-      // Reinicializar la paleta con el nuevo color base
-      pluginState.paletteData = initializePaletteData(pluginState.baseColor, pluginState.amountOfShades);
-      pluginState = recalculatePalette(pluginState);
-      updateUI();
+        // Reinicializar la paleta con el nuevo color base
+        pluginState.paletteData = initializePaletteData(pluginState.baseColor, pluginState.amountOfShades);
+        pluginState = recalculatePalette(pluginState);
+        updateUI();
+        console.log('Base color updated successfully');
+      } catch (error) {
+        console.error('Error updating base color:', error);
+      }
     } else {
       pluginState.isNodeSelected = false;
+      console.log('No object selected or no color found');
     }
   }
 });
