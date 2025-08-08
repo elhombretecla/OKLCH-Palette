@@ -2,6 +2,8 @@
 
 A powerful color palette generator for Penpot that creates perceptually uniform and accessible color palettes using the OKLCH color space.
 
+<img width="1497" height="888" alt="cover-plugin" src="https://github.com/user-attachments/assets/a48df539-90d3-470a-ae28-a01277c50226" />
+
 ## Features
 
 - **Base Color Detection**: Automatically detects the fill color from selected objects in Penpot
