@@ -72,3 +72,7 @@ OKLCH (OK Lightness Chroma Hue) is a perceptually uniform color space that provi
 - **Hue (H)**: 0-360 degrees, represents the color angle
 
 This ensures that color variations appear more natural and accessible compared to traditional RGB-based palette generation.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

@@ -1,6 +1,7 @@
 {
   "name": "OKLCH Palette",
   "code": "plugin.js",
+  "icon": "/icon.png",
   "description": "Create sophisticated color palettes using OKLCH color space with mathematical easing curves. Features intuitive controls for Luminance, Chroma, and Hue interpolation with real-time preview.",
   "permissions": [
     "content:read", 
