@@ -236,6 +236,19 @@
   font-style: italic;
   color: var(--da-primary);
   font-size: 24px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.formula-icon:hover {
+  background: var(--db-quaternary);
+}
+
+.formula-icon.active {
+  background: var(--da-primary);
+  color: var(--db-primary);
 }
 
 .formula-display {

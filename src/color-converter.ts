@@ -12,6 +12,53 @@ export interface RGBColor {
   b: number;
 }
 
+// Define la estructura de un único color dentro de nuestra paleta de estado
+export interface PaletteColor {
+  id: number; // Identificador único (ej. índice del array)
+  l: number;  // Valor de Luminance
+  c: number;  // Valor de Chroma
+  h: number;  // Valor de Hue
+  hex: string; // El resultado visual, para la UI
+}
+
+// Interfaz para los parámetros de las curvas de easing
+export interface EasingParams {
+  m?: number; c?: number; // Linear
+  a?: number; k?: number; d?: number; // Común para muchas curvas
+  b?: number; // Específico para Arctan
+}
+
+// EL NUEVO Y MEJORADO ESTADO CENTRAL
+export interface PluginState {
+  // ¿Qué propiedad maestra estamos editando ahora mismo?
+  activeProperty: 'Luminance' | 'Chroma' | 'Hue';
+  
+  // ¿En qué modo de edición para la propiedad activa nos encontramos?
+  editMode: 'Manual' | 'Formula'; // Controlado por el botón 'fx'
+  
+  // El array de objetos que representa nuestra paleta. ESTA ES LA FUENTE DE VERDAD.
+  paletteData: PaletteColor[];
+  
+  // El resto del estado que ya conocemos
+  isNodeSelected: boolean;
+  baseColor: OKLCHColor;
+  amountOfShades: number;
+  
+  // La configuración de las curvas de easing
+  easing: {
+    activeCurve: 'Linear' | 'Normal' | 'Quad' | 'Arctan' | 'Sine' | 'Expo' | null; // null = ninguna fórmula activa
+    curveParams: EasingParams;
+  };
+  
+  // El rango [from, to] para el MODO FÓRMULA
+  formulaRange: {
+    from: number;
+    to: number;
+  };
+  
+  assetName: string;
+}
+
 // Create converters
 const toOklch = converter('oklch');
 const toRgb = converter('rgb');
@@ -62,7 +109,96 @@ export function oklchToHex(l: number, c: number, h: number): string {
 }
 
 /**
- * Generate color palette using different curve functions
+ * Función principal que recalcula la paleta completa basada en el estado actual
+ */
+export function recalculatePalette(state: PluginState): PluginState {
+  const newState = { ...state };
+  
+  // Identificar si hay una fórmula activa
+  if (state.easing.activeCurve !== null) {
+    // Modo fórmula - aplicar la curva activa
+    const steps = state.amountOfShades;
+    const easedValues = generateCurveValues(steps, state.easing.activeCurve, state.easing.curveParams);
+    
+    // Para cada color en paletteData, actualizar la propiedad activa
+    for (let i = 0; i < newState.paletteData.length; i++) {
+      const easedFactor = easedValues[i];
+      const newValue = state.formulaRange.from + (state.formulaRange.to - state.formulaRange.from) * easedFactor;
+      
+      // Actualizar solo la propiedad activa
+      switch (state.activeProperty) {
+        case 'Luminance':
+          newState.paletteData[i].l = Math.max(0, Math.min(1, newValue));
+          break;
+        case 'Chroma':
+          newState.paletteData[i].c = Math.max(0, Math.min(0.4, newValue));
+          break;
+        case 'Hue':
+          newState.paletteData[i].h = newValue % 360;
+          break;
+      }
+    }
+  }
+  // Si no hay fórmula activa, los valores ya están definidos por los sliders individuales
+  
+  // Paso final: actualizar los valores hex de todos los colores
+  for (let i = 0; i < newState.paletteData.length; i++) {
+    const color = newState.paletteData[i];
+    newState.paletteData[i].hex = oklchToHex(color.l, color.c, color.h);
+  }
+  
+  return newState;
+}
+
+/**
+ * Calcula el factor eased para un valor x usando la curva especificada
+ */
+export function calculateEasedFactor(x: number, easing: PluginState['easing']): number {
+  const params = easing.curveParams;
+  
+  switch (easing.activeCurve) {
+    case 'Linear':
+      return (params.m || 1) * x + (params.c || 0);
+    case 'Normal':
+      return (params.a || 0.18) * Math.sin((params.k || 0.60) * x - (params.d || 0)) + (params.c || 0.18);
+    case 'Quad':
+      return (params.a || 0.07) * Math.pow((params.k || 0.38) * x - (params.d || 1.40), 2) + (params.c || 0.07);
+    case 'Arctan':
+      return (params.b || 0.16) * Math.atan((params.k || 0.40) * x - (params.d || 1.68)) + (params.c || 0.18);
+    case 'Sine':
+      return (params.a || 0.18) * Math.sin((params.k || 0.60) * x - (params.d || 0)) + (params.c || 0.18);
+    case 'Expo':
+      return (params.a || 0.18) * Math.exp(-Math.pow((params.k || 0.35) * x - (params.d || 2.50), 2)) + (params.c || 0);
+    default:
+      return x;
+  }
+}
+
+/**
+ * Inicializa la paleta de datos con valores distribuidos uniformemente
+ */
+export function initializePaletteData(baseColor: OKLCHColor, steps: number): PaletteColor[] {
+  const paletteData: PaletteColor[] = [];
+  
+  for (let i = 0; i < steps; i++) {
+    // Distribuir la luminancia uniformemente de 0 a 1
+    const l = i / (steps - 1);
+    
+    const color: PaletteColor = {
+      id: i,
+      l: l,
+      c: baseColor.c,
+      h: baseColor.h,
+      hex: oklchToHex(l, baseColor.c, baseColor.h)
+    };
+    paletteData.push(color);
+  }
+  
+  return paletteData;
+}
+
+/**
+ * Generate color palette using different curve functions (LEGACY - mantener para compatibilidad)
  */
 export interface PaletteOptions {
   baseColor: OKLCHColor;
@@ -123,49 +259,62 @@ export function generateCustomPalette(baseColor: OKLCHColor, lightnessValues: nu
 /**
  * Generate curve values based on different mathematical functions
  */
-function generateCurveValues(steps: number, curveType: string, params: { [key: string]: number }): number[] {
+function generateCurveValues(steps: number, curveType: string | PluginState['easing']['activeCurve'], params: { [key: string]: number } | EasingParams): number[] {
   const values: number[] = [];
+  
+  if (!curveType) {
+    // Si no hay curva, devolver valores lineales
+    for (let i = 0; i < steps; i++) {
+      values.push(i / (steps - 1));
+    }
+    return values;
+  }
   
   for (let i = 0; i < steps; i++) {
     const x = i / (steps - 1); // Normalized x (0 to 1)
     let y: number;
     
-    switch (curveType) {
+    switch (curveType.toLowerCase()) {
       case 'linear':
         // y = mx + c
         y = (params.m || 0.94) * x + (params.c || 0);
         break;
         
       case 'normal':
-        // y = a*sin(kx - d) + c
-        y = (params.a || 0.18) * Math.sin((params.k || 0.60) * x - (params.d || 0)) + (params.c || 0.18);
+        // y = ae^(-(kx-d)²) + c (Gaussian/Normal distribution)
+        const kx_d_normal = (params.k || 0.60) * x - (params.d || 0);
+        y = (params.a || 0.18) * Math.exp(-(kx_d_normal * kx_d_normal)) + (params.c || 0.18);
         break;
         
       case 'quad':
         // y = a(kx - d)² + c
-        y = (params.a || 0.07) * Math.pow((params.k || 0.38) * x - (params.d || 1.40), 2) + (params.c || 0.07);
+        const kx_d_quad = (params.k || 0.38) * x - (params.d || 1.40);
+        y = (params.a || 0.07) * (kx_d_quad * kx_d_quad) + (params.c || 0.07);
         break;
         
       case 'arctan':
-        // y = b*tan⁻¹(kx - d) + c
-        y = (params.b || 0.16) * Math.atan((params.k || 0.40) * x - (params.d || 1.68)) + (params.c || 0.18);
+        // y = btan⁻¹(kx - d) + c
+        const kx_d_arctan = (params.k || 0.40) * x - (params.d || 1.68);
+        y = (params.b || 0.16) * Math.atan(kx_d_arctan) + (params.c || 0.18);
         break;
         
       case 'sine':
-        // y = a*sin(kx - d) + c  
-        y = (params.a || 0.18) * Math.sin((params.k || 0.60) * x - (params.d || 0)) + (params.c || 0.18);
+        // y = asin(kx - d) + c  
+        const kx_d_sine = (params.k || 0.60) * x - (params.d || 0);
+        y = (params.a || 0.18) * Math.sin(kx_d_sine) + (params.c || 0.18);
         break;
         
       case 'expo':
-        // y = a*e^(-(kx-d)²) + c
-        y = (params.a || 0.18) * Math.exp(-Math.pow((params.k || 0.35) * x - (params.d || 2.50), 2)) + (params.c || 0);
+        // y = ae^(kx - d) + c (Exponential function)
+        const kx_d_expo = (params.k || 0.35) * x - (params.d || 2.50);
+        y = (params.a || 0.18) * Math.exp(kx_d_expo) + (params.c || 0);
         break;
         
       default:
         y = x; // Fallback to linear
     }
     
-    // Clamp values to valid lightness range (0-1)
+    // Clamp values to valid range (0-1)
     values.push(Math.max(0, Math.min(1, y)));
   }
   
@@ -175,34 +324,44 @@ function generateCurveValues(steps: number, curveType: string, params: { [key: s
 /**
  * Get default parameters for each curve type
  */
-export function getDefaultParameters(curveType: string): { [key: string]: number } {
-  switch (curveType) {
+export function getDefaultParameters(curveType: string | PluginState['easing']['activeCurve']): EasingParams {
+  if (!curveType) return {};
+  
+  switch (curveType.toLowerCase()) {
     case 'linear':
+      // y = mx + c (2 parámetros)
       return { m: 0.94, c: 0.00 };
     case 'normal':
+      // y = ae^(-(kx-d)²) + c (4 parámetros)
       return { a: 0.18, k: 0.60, d: 0.00, c: 0.18 };
     case 'quad':
+      // y = a(kx - d)² + c (4 parámetros)
       return { a: 0.07, k: 0.38, d: 1.40, c: 0.07 };
     case 'arctan':
+      // y = btan⁻¹(kx - d) + c (4 parámetros)
       return { b: 0.16, k: 0.40, d: 1.68, c: 0.18 };
     case 'sine':
+      // y = asin(kx - d) + c (4 parámetros)
       return { a: 0.18, k: 0.60, d: 0.00, c: 0.18 };
     case 'expo':
+      // y = ae^(kx - d) + c (4 parámetros)
       return { a: 0.18, k: 0.35, d: 2.50, c: 0.00 };
     default:
-      return { m: 0.94, c: 0.00 };
+      return {};
   }
 }
 
 /**
  * Get formula display for each curve type
  */
-export function getFormulaDisplay(curveType: string): string {
-  switch (curveType) {
+export function getFormulaDisplay(curveType: string | PluginState['easing']['activeCurve']): string {
+  if (!curveType) return '';
+  
+  switch (curveType.toLowerCase()) {
     case 'linear':
       return 'y = mx + c';
     case 'normal':
-      return 'y = asin(kx - d) + c';
+      return 'y = ae^(-(kx-d)²) + c';
     case 'quad':
       return 'y = a(kx - d)² + c';
     case 'arctan':
@@ -210,30 +369,68 @@ export function getFormulaDisplay(curveType: string): string {
     case 'sine':
       return 'y = asin(kx - d) + c';
     case 'expo':
-      return 'y = ae^(-(kx-d)²) + c';
+      return 'y = ae^(kx-d) + c';
     default:
-      return 'y = mx + c';
+      return '';
   }
 }
 
 /**
  * Get parameter labels for each curve type
  */
-export function getParameterLabels(curveType: string): string[] {
-  switch (curveType) {
+export function getParameterLabels(curveType: string | PluginState['easing']['activeCurve']): string[] {
+  if (!curveType) return [];
+  
+  switch (curveType.toLowerCase()) {
     case 'linear':
-      return ['m', 'c'];
+      return ['m', 'c']; // 2 sliders
     case 'normal':
-      return ['a', 'k', 'd', 'c'];
+      return ['a', 'k', 'd', 'c']; // 4 sliders
     case 'quad':
-      return ['a', 'k', 'd', 'c'];
+      return ['a', 'k', 'd', 'c']; // 4 sliders
     case 'arctan':
-      return ['b', 'k', 'd', 'c'];
+      return ['b', 'k', 'd', 'c']; // 4 sliders
     case 'sine':
-      return ['a', 'k', 'd', 'c'];
+      return ['a', 'k', 'd', 'c']; // 4 sliders
     case 'expo':
-      return ['a', 'k', 'd', 'c'];
+      return ['a', 'k', 'd', 'c']; // 4 sliders
     default:
-      return ['m', 'c'];
+      return [];
   }
+}
+
+/**
+ * Obtiene el rango apropiado para la propiedad activa
+ */
+export function getPropertyRange(property: PluginState['activeProperty']): { from: number; to: number } {
+  switch (property) {
+    case 'Luminance':
+      return { from: 0, to: 1 };
+    case 'Chroma':
+      return { from: 0, to: 0.4 };
+    case 'Hue':
+      return { from: 0, to: 360 };
+    default:
+      return { from: 0, to: 1 };
+  }
+}
+
+/**
+ * Crea un estado inicial del plugin
+ */
+export function createInitialState(baseColor: OKLCHColor, steps: number = 10): PluginState {
+  return {
+    activeProperty: 'Luminance',
+    editMode: 'Manual', // Por defecto empezamos en modo manual
+    paletteData: initializePaletteData(baseColor, steps),
+    isNodeSelected: false,
+    baseColor,
+    amountOfShades: steps,
+    easing: {
+      activeCurve: null, // Por defecto no hay ninguna fórmula activa
+      curveParams: {}
+    },
+    formulaRange: getPropertyRange('Luminance'),
+    assetName: 'Palette'
+  };
 }

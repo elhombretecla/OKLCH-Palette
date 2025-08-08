@@ -1,37 +1,30 @@
 import "./style.css";
-import { 
-  hexToOklch, 
-  generatePalette,
-  generateCustomPalette,
-  getDefaultParameters, 
-  getFormulaDisplay, 
+import {
+  hexToOklch,
+  getDefaultParameters,
+  getFormulaDisplay,
   getParameterLabels,
-  type OKLCHColor,
-  type PaletteOptions 
+  recalculatePalette,
+  createInitialState,
+  initializePaletteData,
+  getPropertyRange,
+  type PluginState,
+  type EasingParams
 } from './color-converter';
 
 // Get the current theme from the URL
 const searchParams = new URLSearchParams(window.location.search);
 document.body.dataset.theme = searchParams.get("theme") ?? "light";
 
-// State management
-interface AppState {
-  baseColor: OKLCHColor;
-  steps: number;
-  currentTab: 'luminescence' | 'chroma' | 'hue';
-  curveType: 'linear' | 'normal' | 'quad' | 'arctan' | 'sine' | 'expo';
-  parameters: { [key: string]: number };
-  customLightnessValues: number[];
+// State management usando la nueva arquitectura
+let pluginState: PluginState = createInitialState({ l: 0.5, c: 0.1, h: 0 }, 10);
+
+// Estado adicional para la UI
+interface UIState {
   createAssets: boolean;
 }
 
-let state: AppState = {
-  baseColor: { l: 0.5, c: 0.1, h: 0 },
-  steps: 10,
-  currentTab: 'luminescence',
-  curveType: 'linear',
-  parameters: getDefaultParameters('linear'),
-  customLightnessValues: [],
+let uiState: UIState = {
   createAssets: true
 };
 
@@ -43,7 +36,8 @@ const shadeCount = document.querySelector('.shade-count') as HTMLElement;
 const tabs = document.querySelectorAll('.tab');
 const functionBtns = document.querySelectorAll('.function-btn');
 const formulaDisplay = document.querySelector('.formula') as HTMLElement;
-const verticalSliders = document.querySelectorAll('.vertical-slider') as NodeListOf<HTMLInputElement>;
+const formulaIcon = document.querySelector('.formula-icon') as HTMLElement;
+// Estas variables se eliminan porque no se usan
 const paramSliders = document.querySelectorAll('.param-slider') as NodeListOf<HTMLInputElement>;
 const paramValues = document.querySelectorAll('.param-value') as NodeListOf<HTMLElement>;
 const createAssetsCheckbox = document.querySelector('.create-variables') as HTMLInputElement;
@@ -61,97 +55,116 @@ function setupEventListeners() {
   // Color picker
   colorPicker.addEventListener('input', (e) => {
     const hex = (e.target as HTMLInputElement).value;
-    state.baseColor = hexToOklch(hex);
-    updatePalette();
+    pluginState.baseColor = hexToOklch(hex);
+    // Reinicializar la paleta con el nuevo color base
+    pluginState.paletteData = initializePaletteData(pluginState.baseColor, pluginState.amountOfShades);
+    pluginState = recalculatePalette(pluginState);
+    updateUI();
   });
 
   // Number of shades slider
   shadesSlider.addEventListener('input', (e) => {
-    state.steps = parseInt((e.target as HTMLInputElement).value);
-    shadeCount.textContent = state.steps.toString();
-    updateVerticalSliders();
-    updatePalette();
+    pluginState.amountOfShades = parseInt((e.target as HTMLInputElement).value);
+    shadeCount.textContent = pluginState.amountOfShades.toString();
+    // Reinicializar la paleta con el nuevo número de pasos
+    pluginState.paletteData = initializePaletteData(pluginState.baseColor, pluginState.amountOfShades);
+    pluginState = recalculatePalette(pluginState);
+    updateUI();
   });
 
-  // Channel tabs
+  // Channel tabs - Cambiar propiedad activa
   tabs.forEach((tab, index) => {
     tab.addEventListener('click', () => {
       tabs.forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
-      
-      const tabNames = ['luminescence', 'chroma', 'hue'] as const;
-      state.currentTab = tabNames[index];
-      updateVerticalSliders();
+
+      const tabNames = ['Luminance', 'Chroma', 'Hue'] as const;
+      pluginState.activeProperty = tabNames[index];
+
+      // Actualizar el rango de fórmula para la nueva propiedad
+      pluginState.formulaRange = getPropertyRange(pluginState.activeProperty);
+
+      // Si estamos en modo Formula, recalcular la paleta
+      if (pluginState.editMode === 'Formula') {
+        pluginState = recalculatePalette(pluginState);
+      }
+
+      updateUI();
     });
   });
 
-  // Function buttons
+  // El botón fx ya no es necesario, el comportamiento se maneja con los botones de fórmula
+
+  // Function buttons - Toggle de curvas (activar/desactivar)
   functionBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
-      functionBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      
-      const curveTypes = ['linear', 'normal', 'quad', 'arctan', 'sine', 'expo'] as const;
-      const btnText = btn.textContent?.toLowerCase() as typeof curveTypes[number];
-      state.curveType = btnText;
-      state.parameters = getDefaultParameters(btnText);
-      
-      updateFormulaDisplay();
-      updateParameterControls();
-      updatePalette();
+      const curveTypes = ['Linear', 'Normal', 'Quad', 'Arctan', 'Sine', 'Expo'] as const;
+      const btnText = btn.textContent as typeof curveTypes[number];
+
+      // Si la curva ya está activa, desactivarla
+      if (pluginState.easing.activeCurve === btnText) {
+        pluginState.easing.activeCurve = null;
+        pluginState.easing.curveParams = {};
+        pluginState.editMode = 'Manual';
+      } else {
+        // Activar la nueva curva
+        functionBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        pluginState.easing.activeCurve = btnText;
+        pluginState.easing.curveParams = getDefaultParameters(btnText);
+        pluginState.editMode = 'Formula';
+      }
+
+      // Recalcular paleta
+      pluginState = recalculatePalette(pluginState);
+      updateUI();
     });
   });
 
-  // Parameter sliders
+  // Parameter sliders - Actualizar parámetros de curva
   paramSliders.forEach((slider, index) => {
     slider.addEventListener('input', (e) => {
+      // Solo procesar si hay una curva activa
+      if (!pluginState.easing.activeCurve) return;
+
       const rawValue = parseFloat((e.target as HTMLInputElement).value);
-      const labels = getParameterLabels(state.curveType);
+      const labels = getParameterLabels(pluginState.easing.activeCurve);
       if (labels[index]) {
         // Scale the value based on parameter type and expected range
         let scaledValue = rawValue / 100;
-        
+
         // Adjust scaling for specific parameters that need different ranges
         if (labels[index] === 'd') {
           scaledValue = (rawValue / 100) * 5; // d parameter typically ranges 0-5
         } else if (labels[index] === 'k') {
           scaledValue = (rawValue / 100) * 2; // k parameter typically ranges 0-2
         }
-        
-        state.parameters[labels[index]] = scaledValue;
-        updateParameterValues();
-        updatePalette();
+
+        pluginState.easing.curveParams[labels[index] as keyof EasingParams] = scaledValue;
+
+        // Recalcular paleta con nuevos parámetros
+        pluginState = recalculatePalette(pluginState);
+        updateUI();
       }
     });
   });
 
-  // Vertical sliders (for manual lightness adjustment)
-  verticalSliders.forEach((slider, index) => {
-    slider.addEventListener('input', (e) => {
-      const value = parseFloat((e.target as HTMLInputElement).value) / 100;
-      if (state.currentTab === 'luminescence') {
-        if (!state.customLightnessValues.length) {
-          state.customLightnessValues = generateDefaultLightnessValues();
-        }
-        state.customLightnessValues[index] = value;
-        updateSliderValues();
-        updatePalette();
-      }
-    });
-  });
+  // Vertical sliders - Para ajuste manual de valores individuales
+  // Estos se crearán dinámicamente en updateVerticalSliders()
 
   // Create assets checkbox
   createAssetsCheckbox.addEventListener('change', (e) => {
-    state.createAssets = (e.target as HTMLInputElement).checked;
+    uiState.createAssets = (e.target as HTMLInputElement).checked;
   });
 
   // Add button
   addBtn.addEventListener('click', () => {
-    const palette = generateCurrentPalette();
+    const palette = pluginState.paletteData.map(color => color.hex);
     parent.postMessage({
       type: 'add-palette',
       colors: palette,
-      createAssets: state.createAssets
+      createAssets: uiState.createAssets
     }, "*");
   });
 }
@@ -161,21 +174,12 @@ function requestBaseColor() {
   parent.postMessage({ type: 'get-base-color' }, "*");
 }
 
-// Generate default lightness values
-function generateDefaultLightnessValues(): number[] {
-  const values: number[] = [];
-  for (let i = 0; i < state.steps; i++) {
-    values.push(i / (state.steps - 1));
-  }
-  return values;
-}
-
 // Update vertical sliders based on current tab and steps
 function updateVerticalSliders() {
   const container = document.querySelector('.sliders-container') as HTMLElement;
   container.innerHTML = '';
 
-  for (let i = 0; i < state.steps; i++) {
+  for (let i = 0; i < pluginState.amountOfShades; i++) {
     const sliderItem = document.createElement('div');
     sliderItem.className = 'slider-item';
 
@@ -183,51 +187,62 @@ function updateVerticalSliders() {
     slider.type = 'range';
     slider.className = 'vertical-slider';
     slider.min = '0';
-    slider.max = '100';
     slider.setAttribute('orient', 'vertical');
 
     const valueSpan = document.createElement('span');
     valueSpan.className = 'slider-value';
 
-    // Set ranges based on current tab
+    // Set ranges and values based on current active property
     let value = 0;
     let maxRange = 100;
-    
-    switch (state.currentTab) {
-      case 'luminescence':
+
+    switch (pluginState.activeProperty) {
+      case 'Luminance':
         maxRange = 100; // 0-1
-        value = state.customLightnessValues.length ? 
-          state.customLightnessValues[i] * 100 : 
-          (i / (state.steps - 1)) * 100;
+        value = pluginState.paletteData[i].l * 100;
         break;
-      case 'chroma':
+      case 'Chroma':
         maxRange = 40; // 0-0.4 (40 represents 0.4 in the slider)
-        value = (state.baseColor.c / 0.4) * 40;
+        value = (pluginState.paletteData[i].c / 0.4) * 40;
         break;
-      case 'hue':
+      case 'Hue':
         maxRange = 360; // 0-360 degrees
-        value = state.baseColor.h || 0;
+        value = pluginState.paletteData[i].h || 0;
         break;
     }
 
     slider.max = maxRange.toString();
     slider.value = value.toString();
-    
-    // Update value display
-    updateSliderValueDisplay(valueSpan, value, state.currentTab);
 
-    // Add event listener
+    // Update value display
+    updateSliderValueDisplay(valueSpan, value, pluginState.activeProperty);
+
+    // Add event listener para modo manual
     slider.addEventListener('input', (e) => {
       const sliderValue = parseFloat((e.target as HTMLInputElement).value);
-      updateSliderValueDisplay(valueSpan, sliderValue, state.currentTab);
-      
-      if (state.currentTab === 'luminescence') {
-        if (!state.customLightnessValues.length) {
-          state.customLightnessValues = generateDefaultLightnessValues();
-        }
-        state.customLightnessValues[i] = sliderValue / 100;
-        updatePalette();
+      updateSliderValueDisplay(valueSpan, sliderValue, pluginState.activeProperty);
+
+      // Cambiar a modo manual si no estamos ya en él
+      if (pluginState.editMode !== 'Manual') {
+        pluginState.editMode = 'Manual';
       }
+
+      // Actualizar el valor específico en paletteData
+      switch (pluginState.activeProperty) {
+        case 'Luminance':
+          pluginState.paletteData[i].l = sliderValue / 100;
+          break;
+        case 'Chroma':
+          pluginState.paletteData[i].c = (sliderValue / 40) * 0.4;
+          break;
+        case 'Hue':
+          pluginState.paletteData[i].h = sliderValue;
+          break;
+      }
+
+      // Recalcular solo los valores hex (modo manual)
+      pluginState = recalculatePalette(pluginState);
+      updatePalette();
     });
 
     sliderItem.appendChild(slider);
@@ -236,102 +251,89 @@ function updateVerticalSliders() {
   }
 }
 
-// Update slider value display based on tab
-function updateSliderValueDisplay(element: HTMLElement, value: number, tab: string) {
-  switch (tab) {
-    case 'luminescence':
+// Update slider value display based on active property
+function updateSliderValueDisplay(element: HTMLElement, value: number, property: PluginState['activeProperty']) {
+  switch (property) {
+    case 'Luminance':
       element.textContent = (value / 100).toFixed(2);
       break;
-    case 'chroma':
-      element.textContent = (value / 100).toFixed(2);
+    case 'Chroma':
+      element.textContent = ((value / 40) * 0.4).toFixed(2);
       break;
-    case 'hue':
+    case 'Hue':
       element.textContent = Math.round(value).toString();
       break;
   }
 }
 
-// Update slider values
-function updateSliderValues() {
-  const sliderValues = document.querySelectorAll('.slider-value');
-  sliderValues.forEach((valueEl, index) => {
-    if (state.currentTab === 'luminescence' && state.customLightnessValues[index] !== undefined) {
-      valueEl.textContent = state.customLightnessValues[index].toFixed(2);
-    }
-  });
-}
+
 
 // Update formula display
 function updateFormulaDisplay() {
-  formulaDisplay.textContent = getFormulaDisplay(state.curveType);
+  if (pluginState.easing.activeCurve) {
+    formulaDisplay.textContent = getFormulaDisplay(pluginState.easing.activeCurve);
+  } else {
+    formulaDisplay.textContent = '';
+  }
 }
 
 // Update parameter controls
 function updateParameterControls() {
-  const labels = getParameterLabels(state.curveType);
   const parameterGroups = document.querySelectorAll('.parameter-group');
-  
+
   // Hide all parameter groups first
   parameterGroups.forEach(group => {
     (group as HTMLElement).style.display = 'none';
   });
-  
-  // Show and update relevant parameter groups
-  labels.forEach((label, index) => {
-    if (parameterGroups[index]) {
-      (parameterGroups[index] as HTMLElement).style.display = 'flex';
-      const labelEl = parameterGroups[index].querySelector('.param-label') as HTMLElement;
-      const sliderEl = parameterGroups[index].querySelector('.param-slider') as HTMLInputElement;
-      const valueEl = parameterGroups[index].querySelector('.param-value') as HTMLElement;
-      
-      labelEl.textContent = label;
-      
-      // Scale the slider value based on parameter type
-      let sliderValue = state.parameters[label] * 100;
-      if (label === 'd') {
-        sliderValue = (state.parameters[label] / 5) * 100; // d parameter ranges 0-5
-      } else if (label === 'k') {
-        sliderValue = (state.parameters[label] / 2) * 100; // k parameter ranges 0-2
+
+  // Si hay una curva activa, mostrar sus parámetros
+  if (pluginState.easing.activeCurve) {
+    const labels = getParameterLabels(pluginState.easing.activeCurve);
+
+    // Show and update relevant parameter groups
+    labels.forEach((label, index) => {
+      if (parameterGroups[index]) {
+        (parameterGroups[index] as HTMLElement).style.display = 'flex';
+        const labelEl = parameterGroups[index].querySelector('.param-label') as HTMLElement;
+        const sliderEl = parameterGroups[index].querySelector('.param-slider') as HTMLInputElement;
+        const valueEl = parameterGroups[index].querySelector('.param-value') as HTMLElement;
+
+        labelEl.textContent = label;
+
+        // Scale the slider value based on parameter type
+        const paramValue = pluginState.easing.curveParams[label as keyof EasingParams] || 0;
+        let sliderValue = paramValue * 100;
+        if (label === 'd') {
+          sliderValue = (paramValue / 5) * 100; // d parameter ranges 0-5
+        } else if (label === 'k') {
+          sliderValue = (paramValue / 2) * 100; // k parameter ranges 0-2
+        }
+
+        sliderEl.value = sliderValue.toString();
+        valueEl.textContent = paramValue.toFixed(2);
       }
-      
-      sliderEl.value = sliderValue.toString();
-      valueEl.textContent = state.parameters[label].toFixed(2);
-    }
-  });
+    });
+  }
 }
 
 // Update parameter values display
 function updateParameterValues() {
-  const labels = getParameterLabels(state.curveType);
-  labels.forEach((label, index) => {
-    if (paramValues[index]) {
-      paramValues[index].textContent = state.parameters[label].toFixed(2);
-    }
-  });
-}
-
-// Generate current palette
-function generateCurrentPalette(): string[] {
-  if (state.customLightnessValues.length && state.currentTab === 'luminescence') {
-    // Use custom lightness values
-    return generateCustomPalette(state.baseColor, state.customLightnessValues);
-  } else {
-    // Use curve-based generation
-    const options: PaletteOptions = {
-      baseColor: state.baseColor,
-      steps: state.steps,
-      curveType: state.curveType,
-      parameters: state.parameters
-    };
-    return generatePalette(options);
+  if (pluginState.easing.activeCurve) {
+    const labels = getParameterLabels(pluginState.easing.activeCurve);
+    labels.forEach((label, index) => {
+      if (paramValues[index]) {
+        const paramValue = pluginState.easing.curveParams[label as keyof EasingParams] || 0;
+        paramValues[index].textContent = paramValue.toFixed(2);
+      }
+    });
   }
 }
 
 // Update palette preview
 function updatePalette() {
-  const colors = generateCurrentPalette();
+  const colors = pluginState.paletteData.map(color => color.hex);
   palettePreview.innerHTML = '';
-  
+
   colors.forEach(color => {
     const swatch = document.createElement('div');
     swatch.className = 'color-swatch';
@@ -345,10 +347,57 @@ function updateUI() {
   updateVerticalSliders();
   updateFormulaDisplay();
   updateParameterControls();
+  updateParameterValues();
   updatePalette();
-  shadeCount.textContent = state.steps.toString();
-  shadesSlider.value = state.steps.toString();
-  createAssetsCheckbox.checked = state.createAssets;
+  shadeCount.textContent = pluginState.amountOfShades.toString();
+  shadesSlider.value = pluginState.amountOfShades.toString();
+  createAssetsCheckbox.checked = uiState.createAssets;
+
+  // Actualizar tabs activos
+  tabs.forEach((tab, index) => {
+    tab.classList.remove('active');
+    const tabNames = ['Luminance', 'Chroma', 'Hue'];
+    if (tabNames[index] === pluginState.activeProperty) {
+      tab.classList.add('active');
+    }
+  });
+
+  // Actualizar botones de función activos
+  functionBtns.forEach((btn) => {
+    btn.classList.remove('active');
+    if (pluginState.easing.activeCurve && btn.textContent === pluginState.easing.activeCurve) {
+      btn.classList.add('active');
+    }
+  });
+
+  // Actualizar UI según el modo de edición
+  updateModeUI();
+}
+
+// Actualizar UI según el modo de edición (Manual vs Formula)
+function updateModeUI() {
+  const slidersContainer = document.querySelector('.sliders-container') as HTMLElement;
+  const functionLeft = document.querySelector('.function-left') as HTMLElement;
+  const functionRight = document.querySelector('.function-right') as HTMLElement;
+  const functionCenter = document.querySelector('.function-center') as HTMLElement;
+
+  // Los sliders individuales siempre se muestran
+  slidersContainer.style.display = 'flex';
+
+  // Los botones de fórmula (functionLeft) siempre se muestran
+  functionLeft.style.display = 'block';
+
+  if (pluginState.easing.activeCurve === null) {
+    // Sin fórmula activa: ocultar solo los controles de parámetros y la fórmula
+    functionRight.style.display = 'none';
+    functionCenter.style.display = 'none';
+    formulaIcon.classList.remove('active');
+  } else {
+    // Con fórmula activa: mostrar controles de fórmula y parámetros
+    functionRight.style.display = 'block';
+    functionCenter.style.display = 'flex';
+    formulaIcon.classList.add('active');
+  }
 }
 
 // Listen for messages from plugin
@@ -357,9 +406,16 @@ window.addEventListener("message", (event) => {
     document.body.dataset.theme = event.data.theme;
   } else if (event.data.type === "base-color") {
     if (event.data.color) {
-      state.baseColor = hexToOklch(event.data.color);
+      pluginState.baseColor = hexToOklch(event.data.color);
+      pluginState.isNodeSelected = true;
       colorPicker.value = event.data.color;
-      updatePalette();
+
+      // Reinicializar la paleta con el nuevo color base
+      pluginState.paletteData = initializePaletteData(pluginState.baseColor, pluginState.amountOfShades);
+      pluginState = recalculatePalette(pluginState);
+      updateUI();
+    } else {
+      pluginState.isNodeSelected = false;
     }
   }
 });
