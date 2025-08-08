@@ -1,141 +1,74 @@
 # OKLCH Palette Plugin for Penpot
 
-This repository is designed to be your starting point for creating plugins for Penpot. It includes everything you need to get started quickly with development and build processes, so you can focus solely on coding. The template uses Vite as the bundler and comes pre-configured with TypeScript, though you can write your code in vanilla JavaScript if you prefer, while keeping TypeScript to handle Penpot typings in the `plugin.ts` file.
+A powerful color palette generator for Penpot that creates perceptually uniform and accessible color palettes using the OKLCH color space.
 
-## Pre-requisites
+## Features
 
-- Node.js and npm (<a href="https://nodejs.org/en/download/package-manager" target="_blank">Download</a>).
-- Git (<a href="https://git-scm.com/downloads" target="_blank">Download</a>).
-- Visual Studio Code (<a href="https://code.visualstudio.com/download" target="_blank">Download</a>) or similar.
-- Basic HTML, CSS and javascript knowledge.
+- **Base Color Detection**: Automatically detects the fill color from selected objects in Penpot
+- **OKLCH Color Space**: Uses the perceptually uniform OKLCH color space for better color relationships
+- **Multiple Curve Types**: Generate palettes using different mathematical curves:
+  - Linear
+  - Normal (sine wave)
+  - Quadratic
+  - Arctangent
+  - Sine
+  - Exponential
+- **Real-time Preview**: See your palette update in real-time as you adjust parameters
+- **Manual Control**: Fine-tune individual color lightness values with vertical sliders
+- **Three Channel Tabs**: Control Luminescence, Chroma, and Hue independently
+- **Canvas Integration**: Create color rectangles directly in your Penpot canvas
+- **Color Library**: Option to add generated colors to your document's color library
 
-## Folders and Files
+## How to Use
 
-- **`/`**: the root directory containing important files like `index.html`, the entry point for your plugin, along with configuration files such as `tsconfig.json` or `package.json`.
+1. **Select a Base Color**: 
+   - Select an object with a fill color in Penpot, or
+   - Use the color picker to choose a base color
 
-- **`public/`**: includes static assets like `manifest.json` for plugin metadata.
+2. **Adjust Parameters**:
+   - Set the number of shades (2-20)
+   - Choose between Luminescence, Chroma, or Hue tabs
+   - Select a curve type (Linear, Normal, Quad, Arctan, Sine, Expo)
+   - Fine-tune curve parameters using the sliders
 
-- **`src/`**: contains the core source files for your plugin.
+3. **Manual Adjustments**:
+   - Switch to Luminescence tab for manual control
+   - Use vertical sliders to adjust individual color lightness values
 
-- **`node_modules/`**: contains external dependencies used for development, installed via npm.
+4. **Generate Palette**:
+   - Check "Create as color assets" to add colors to your library
+   - Click "Add to my file" to create color rectangles in your canvas
 
-- **`dist/`**: the output directory generated after the build process, containing the production-ready plugin files for deployment.
+## Technical Details
 
-### What is typescript?
+- Built with TypeScript and Vite
+- Uses the Culori.js library for accurate color space conversions
+- Implements the official Penpot Plugin API
+- Supports gamut clipping to ensure web-safe colors
 
-TypeScript is like JavaScript with extra rules. These rules help you catch mistakes early, before you run your code. It makes your code more reliable and easier to manage, especially in big projects.
+## Installation
 
-We're using TypeScript to make working with the Penpot API easier, as it provides autocompletion and instant access to documentation.
-
-### What are plugin.ts and plugin.js files?
-
-The `plugin.ts` file is where you write code to interact with the Penpot API using TypeScript. This file is then compiled into `plugin.js` which is the final JavaScript code that runs the plugin. You don't write `plugin.js` directly; it's generated from the `plugin.ts` file.
-
-**Note that this is also the only file where you can use the Penpot object.** Do not try to use the Penpot object in your plugin interface scripts.
-
-### What is manifest.json file?
-
-The `manifest.json` file contains the basic information about the plugin. It defines the plugin's name, description, the main code file, and the permissions it requires. The structure of the `manifest.json` file looks like this:
-
-```json
-{
-  "name": "Your plugin name",
-  "description": "Your plugin description",
-  "code": "plugin-file.js",
-  "icon": "your-icon.png",
-  "permissions": [
-    "content:read",
-    "content:write",
-    "library:read",
-    "library:write",
-    "user:read"
-  ]
-}
-```
-
-This file is essential for the plugin to function correctly within Penpot.
-
-## Getting Started
-
-[![Watch the video how to use starter template](https://penpot.github.io/penpot-plugin-starter-template/plugin-starter-template.png)](https://penpot.github.io/penpot-plugin-starter-template/plugin-starter-template.mp4)
-
-### Use this template
-
-Click the "Use this template" button at the top of the GitHub repository page. That'll create a new repository in your account with all the template files.
-
-Now that your repository was created you can clone it in your machine to start working with it:
-
-```bash
-git clone <your-repository-url>
-```
-
-### Install Dependencies
-
-After cloning the repository, navigate into the project directory and install the necessary dependencies by running:
-
-```bash
-cd <your-project-name>
-npm install
-```
-
-This command installs all the required packages listed in the `package.json` file.
-
-### Configure the Plugin
-
-Next, you need to edit the plugin's configuration file:
-
-1. Open the `manifest.json` file located in the `/public` folder.
-2. Make any necessary changes to your `plugin.ts`file. Note that any modifications to this file require you to restart the development server for changes to take effect. You can check our repository <a href="https://github.com/penpot/penpot-plugins-samples" target="_blank">Penpot plugins samples</a> for specific examples.
-
-### Run the Development Server
-
-To start the development server, run the following command in your terminal:
-
-```bash
-npm run dev
-```
-
-Once the server is running, open your web browser and go to `http://localhost:4400` to view your plugin in action. Now it is ready to be loaded in Penpot with the url `http://localhost:4400/manifest.json`.
-
-### Load your local plugin
-
-To load and test your local plugin running on `http://localhost:4400`, follow these steps:
-
-1. **Open the Plugin Manager:** Use the shortcut `Ctrl + Alt + P` in any file to open the Plugin Manager modal.
-
-2. **Enter the manifest URL:** In the Plugin Manager, provide the URL for your local plugin's manifest file. For a local setup, this URL will be: `http://localhost:4400/manifest.json`.
-
-3. **Install the plugin:** After entering the URL, Penpot will attempt to install the plugin. If there are no issues, the plugin will be successfully installed.
-
-4. **Access the plugin:** Once installed, you can open and use the plugin directly from within Penpot whenever you need it.
+1. Build the plugin: `npm run build`
+2. Load the plugin in Penpot using the generated `dist` folder
 
 ## Development
 
-### Technologies Used
-
-This plugin template uses several key technologies:
-
-- **TypeScript**
-- **Vite**
-- **Web Components**
-
-### Libraries Included
-
-The template includes two Penpot libraries to assist in your development:
-
-- `@penpot/plugin-styles`: <a href="https://www.npmjs.com/package/@penpot/plugin-styles" target="_blank">This library</a> provides utility functions and resources to help you style your components consistently with Penpot's design system.
-- `@penpot/plugin-types`: <a href="https://www.npmjs.com/package/@penpot/plugin-types" target="_blank">This library</a> includes types and API descriptions for interacting with the Penpot plugin API, facilitating the development of plugins that can communicate effectively with the Penpot app.
-
-## Deployment
-
-### Build your plugin
-
 ```bash
+# Install dependencies
+npm install
+
+# Development mode with hot reload
+npm run dev
+
+# Build for production
 npm run build
 ```
 
-### Deploy your plugin
+## Color Space Information
 
-After successfully building your plugin, now you're ready to use your chosen platform to deploy it.
+OKLCH (OK Lightness Chroma Hue) is a perceptually uniform color space that provides:
+- **Lightness (L)**: 0-1 range, represents perceived brightness
+- **Chroma (C)**: 0-0.4 range, represents color intensity/saturation
+- **Hue (H)**: 0-360 degrees, represents the color angle
 
-Check our <a href="https://help.penpot.app/plugins/deployment/" target="_blank">Deployment guide</a> for more information about how to deploy your plugin in multiple platforms.
+This ensures that color variations appear more natural and accessible compared to traditional RGB-based palette generation.
