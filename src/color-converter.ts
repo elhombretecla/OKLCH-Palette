@@ -12,23 +12,23 @@ export interface RGBColor {
   b: number;
 }
 
-// Define la estructura de un único color dentro de nuestra paleta de estado
+// Define the structure of a single color within our state palette
 export interface PaletteColor {
-  id: number; // Identificador único (ej. índice del array)
-  l: number;  // Valor de Luminance
-  c: number;  // Valor de Chroma
-  h: number;  // Valor de Hue
-  hex: string; // El resultado visual, para la UI
+  id: number; // Unique identifier (e.g. array index)
+  l: number;  // Luminance value
+  c: number;  // Chroma value
+  h: number;  // Hue value
+  hex: string; // The visual result, for the UI
 }
 
-// Interfaz para los parámetros de las curvas de easing
+// Interface for easing curve parameters
 export interface EasingParams {
   m?: number; c?: number; // Linear
-  a?: number; k?: number; d?: number; // Común para muchas curvas
-  b?: number; // Específico para Arctan
+  a?: number; k?: number; d?: number; // Common for many curves
+  b?: number; // Specific for Arctan
 }
 
-// Configuración de fórmula para una propiedad específica
+// Formula configuration for a specific property
 export interface PropertyFormulaConfig {
   activeCurve: 'Linear' | 'Normal' | 'Quad' | 'Arctan' | 'Sine' | 'Expo' | null;
   curveParams: EasingParams;
@@ -38,26 +38,26 @@ export interface PropertyFormulaConfig {
   };
 }
 
-// EL NUEVO Y MEJORADO ESTADO CENTRAL
+// THE NEW AND IMPROVED CENTRAL STATE
 export interface PluginState {
-  // ¿Qué propiedad maestra estamos editando ahora mismo?
+  // Which master property are we editing right now?
   activeProperty: 'Luminance' | 'Chroma' | 'Hue';
-  
-  // El array de objetos que representa nuestra paleta. ESTA ES LA FUENTE DE VERDAD.
+
+  // The array of objects that represents our palette. THIS IS THE SOURCE OF TRUTH.
   paletteData: PaletteColor[];
-  
-  // El resto del estado que ya conocemos
+
+  // The rest of the state we already know
   isNodeSelected: boolean;
   baseColor: OKLCHColor;
   amountOfShades: number;
-  
-  // Configuración de fórmulas independiente para cada propiedad
+
+  // Independent formula configuration for each property
   formulas: {
     Luminance: PropertyFormulaConfig;
     Chroma: PropertyFormulaConfig;
     Hue: PropertyFormulaConfig;
   };
-  
+
   assetName: string;
 }
 
@@ -111,29 +111,29 @@ export function oklchToHex(l: number, c: number, h: number): string {
 }
 
 /**
- * Función principal que recalcula la paleta completa basada en el estado actual
+ * Main function that recalculates the complete palette based on the current state
  */
 export function recalculatePalette(state: PluginState): PluginState {
   const newState = { ...state };
   const steps = state.amountOfShades;
-  
-  // Aplicar fórmulas a cada propiedad independientemente
+
+  // Apply formulas to each property independently
   const properties: Array<keyof typeof state.formulas> = ['Luminance', 'Chroma', 'Hue'];
-  
+
   properties.forEach(property => {
     const formulaConfig = state.formulas[property];
-    
+
     if (formulaConfig.activeCurve !== null) {
-      // Hay una fórmula activa para esta propiedad
+      // There is an active formula for this property
       const easedValues = generateCurveValues(steps, formulaConfig.activeCurve, formulaConfig.curveParams);
-      
-      // Aplicar la fórmula a todos los colores para esta propiedad
+
+      // Apply the formula to all colors for this property
       for (let i = 0; i < newState.paletteData.length; i++) {
         const easedFactor = easedValues[i];
-        const newValue = formulaConfig.formulaRange.from + 
+        const newValue = formulaConfig.formulaRange.from +
           (formulaConfig.formulaRange.to - formulaConfig.formulaRange.from) * easedFactor;
-        
-        // Actualizar la propiedad específica
+
+        // Update the specific property
         switch (property) {
           case 'Luminance':
             newState.paletteData[i].l = Math.max(0, Math.min(1, newValue));
@@ -147,24 +147,24 @@ export function recalculatePalette(state: PluginState): PluginState {
         }
       }
     }
-    // Si no hay fórmula activa para esta propiedad, mantener los valores manuales
+    // If there is no active formula for this property, keep the manual values
   });
-  
-  // Paso final: actualizar los valores hex de todos los colores
+
+  // Final step: update the hex values of all colors
   for (let i = 0; i < newState.paletteData.length; i++) {
     const color = newState.paletteData[i];
     newState.paletteData[i].hex = oklchToHex(color.l, color.c, color.h);
   }
-  
+
   return newState;
 }
 
 /**
- * Calcula el factor eased para un valor x usando la curva especificada
+ * Calculates the eased factor for an x value using the specified curve
  */
 export function calculateEasedFactor(x: number, formulaConfig: PropertyFormulaConfig): number {
   const params = formulaConfig.curveParams;
-  
+
   switch (formulaConfig.activeCurve) {
     case 'Linear':
       return (params.m || 1) * x + (params.c || 0);
@@ -184,15 +184,15 @@ export function calculateEasedFactor(x: number, formulaConfig: PropertyFormulaCo
 }
 
 /**
- * Inicializa la paleta de datos con valores distribuidos uniformemente
+ * Initialize the data palette with uniformly distributed values
  */
 export function initializePaletteData(baseColor: OKLCHColor, steps: number): PaletteColor[] {
   const paletteData: PaletteColor[] = [];
-  
+
   for (let i = 0; i < steps; i++) {
-    // Distribuir la luminancia uniformemente de 0 a 1
+    // Distribute luminance uniformly from 0 to 1
     const l = i / (steps - 1);
-    
+
     const color: PaletteColor = {
       id: i,
       l: l,
@@ -202,7 +202,7 @@ export function initializePaletteData(baseColor: OKLCHColor, steps: number): Pal
     };
     paletteData.push(color);
   }
-  
+
   return paletteData;
 }
 
@@ -219,26 +219,26 @@ export interface PaletteOptions {
 export function generatePalette(options: PaletteOptions): string[] {
   const { baseColor, steps, curveType, parameters } = options;
   const colors: string[] = [];
-  
+
   // Generate lightness values based on curve type
   const lightnessValues = generateCurveValues(steps, curveType, parameters);
-  
+
   for (let i = 0; i < steps; i++) {
     const lightness = lightnessValues[i];
-    
+
     // Apply chroma adjustment based on lightness
     let chroma = baseColor.c;
-    
+
     // Reduce chroma for very light or very dark colors for more natural appearance
     if (lightness < 0.2 || lightness > 0.8) {
       const chromaReduction = Math.abs(lightness - 0.5) * 0.3;
       chroma = Math.max(0, baseColor.c - chromaReduction);
     }
-    
+
     const hex = oklchToHex(lightness, chroma, baseColor.h);
     colors.push(hex);
   }
-  
+
   return colors;
 }
 
@@ -247,21 +247,21 @@ export function generatePalette(options: PaletteOptions): string[] {
  */
 export function generateCustomPalette(baseColor: OKLCHColor, lightnessValues: number[]): string[] {
   const colors: string[] = [];
-  
+
   for (const lightness of lightnessValues) {
     // Apply chroma adjustment based on lightness
     let chroma = baseColor.c;
-    
+
     // Reduce chroma for very light or very dark colors for more natural appearance
     if (lightness < 0.2 || lightness > 0.8) {
       const chromaReduction = Math.abs(lightness - 0.5) * 0.3;
       chroma = Math.max(0, baseColor.c - chromaReduction);
     }
-    
+
     const hex = oklchToHex(lightness, chroma, baseColor.h);
     colors.push(hex);
   }
-  
+
   return colors;
 }
 
@@ -270,63 +270,63 @@ export function generateCustomPalette(baseColor: OKLCHColor, lightnessValues: nu
  */
 function generateCurveValues(steps: number, curveType: string | PropertyFormulaConfig['activeCurve'], params: { [key: string]: number } | EasingParams): number[] {
   const values: number[] = [];
-  
+
   if (!curveType) {
-    // Si no hay curva, devolver valores lineales
+    // If there is no curve, return linear values
     for (let i = 0; i < steps; i++) {
       values.push(i / (steps - 1));
     }
     return values;
   }
-  
+
   for (let i = 0; i < steps; i++) {
     const x = i / (steps - 1); // Normalized x (0 to 1)
     let y: number;
-    
+
     switch (curveType.toLowerCase()) {
       case 'linear':
         // y = mx + c
         y = (params.m || 0.94) * x + (params.c || 0);
         break;
-        
+
       case 'normal':
         // y = ae^(-(kx-d)²) + c (Gaussian/Normal distribution)
         const kx_d_normal = (params.k || 0.60) * x - (params.d || 0);
         y = (params.a || 0.18) * Math.exp(-(kx_d_normal * kx_d_normal)) + (params.c || 0.18);
         break;
-        
+
       case 'quad':
         // y = a(kx - d)² + c
         const kx_d_quad = (params.k || 0.38) * x - (params.d || 1.40);
         y = (params.a || 0.07) * (kx_d_quad * kx_d_quad) + (params.c || 0.07);
         break;
-        
+
       case 'arctan':
         // y = btan⁻¹(kx - d) + c
         const kx_d_arctan = (params.k || 0.40) * x - (params.d || 1.68);
         y = (params.b || 0.16) * Math.atan(kx_d_arctan) + (params.c || 0.18);
         break;
-        
+
       case 'sine':
         // y = asin(kx - d) + c  
         const kx_d_sine = (params.k || 0.60) * x - (params.d || 0);
         y = (params.a || 0.18) * Math.sin(kx_d_sine) + (params.c || 0.18);
         break;
-        
+
       case 'expo':
         // y = ae^(kx - d) + c (Exponential function)
         const kx_d_expo = (params.k || 0.35) * x - (params.d || 2.50);
         y = (params.a || 0.18) * Math.exp(kx_d_expo) + (params.c || 0);
         break;
-        
+
       default:
         y = x; // Fallback to linear
     }
-    
+
     // Clamp values to valid range (0-1)
     values.push(Math.max(0, Math.min(1, y)));
   }
-  
+
   return values;
 }
 
@@ -335,25 +335,25 @@ function generateCurveValues(steps: number, curveType: string | PropertyFormulaC
  */
 export function getDefaultParameters(curveType: string | PropertyFormulaConfig['activeCurve']): EasingParams {
   if (!curveType) return {};
-  
+
   switch (curveType.toLowerCase()) {
     case 'linear':
-      // y = mx + c (2 parámetros)
+      // y = mx + c (2 parameters)
       return { m: 0.94, c: 0.00 };
     case 'normal':
-      // y = ae^(-(kx-d)²) + c (4 parámetros)
+      // y = ae^(-(kx-d)²) + c (4 parameters)
       return { a: 0.18, k: 0.60, d: 0.00, c: 0.18 };
     case 'quad':
-      // y = a(kx - d)² + c (4 parámetros)
+      // y = a(kx - d)² + c (4 parameters)
       return { a: 0.07, k: 0.38, d: 1.40, c: 0.07 };
     case 'arctan':
-      // y = btan⁻¹(kx - d) + c (4 parámetros)
+      // y = btan⁻¹(kx - d) + c (4 parameters)
       return { b: 0.16, k: 0.40, d: 1.68, c: 0.18 };
     case 'sine':
-      // y = asin(kx - d) + c (4 parámetros)
+      // y = asin(kx - d) + c (4 parameters)
       return { a: 0.18, k: 0.60, d: 0.00, c: 0.18 };
     case 'expo':
-      // y = ae^(kx - d) + c (4 parámetros)
+      // y = ae^(kx - d) + c (4 parameters)
       return { a: 0.18, k: 0.35, d: 2.50, c: 0.00 };
     default:
       return {};
@@ -365,7 +365,7 @@ export function getDefaultParameters(curveType: string | PropertyFormulaConfig['
  */
 export function getFormulaDisplay(curveType: string | PropertyFormulaConfig['activeCurve']): string {
   if (!curveType) return '';
-  
+
   switch (curveType.toLowerCase()) {
     case 'linear':
       return 'y = mx + c';
@@ -389,7 +389,7 @@ export function getFormulaDisplay(curveType: string | PropertyFormulaConfig['act
  */
 export function getParameterLabels(curveType: string | PropertyFormulaConfig['activeCurve']): string[] {
   if (!curveType) return [];
-  
+
   switch (curveType.toLowerCase()) {
     case 'linear':
       return ['m', 'c']; // 2 sliders
@@ -409,7 +409,7 @@ export function getParameterLabels(curveType: string | PropertyFormulaConfig['ac
 }
 
 /**
- * Obtiene el rango apropiado para la propiedad activa
+ * Gets the appropriate range for the active property
  */
 export function getPropertyRange(property: PluginState['activeProperty']): { from: number; to: number } {
   switch (property) {
@@ -425,17 +425,17 @@ export function getPropertyRange(property: PluginState['activeProperty']): { fro
 }
 
 /**
- * Obtiene la configuración de fórmula para la propiedad activa
+ * Gets the formula configuration for the active property
  */
 export function getActivePropertyFormula(state: PluginState): PropertyFormulaConfig {
   return state.formulas[state.activeProperty];
 }
 
 /**
- * Actualiza la configuración de fórmula para la propiedad activa
+ * Updates the formula configuration for the active property
  */
 export function updateActivePropertyFormula(
-  state: PluginState, 
+  state: PluginState,
   updates: Partial<PropertyFormulaConfig>
 ): PluginState {
   const newState = { ...state };
@@ -448,18 +448,18 @@ export function updateActivePropertyFormula(
 }
 
 /**
- * Crea una configuración de fórmula inicial para una propiedad
+ * Creates an initial formula configuration for a property
  */
 function createPropertyFormulaConfig(property: 'Luminance' | 'Chroma' | 'Hue'): PropertyFormulaConfig {
   return {
-    activeCurve: null, // Por defecto no hay ninguna fórmula activa
+    activeCurve: null, // By default there is no active formula
     curveParams: {},
     formulaRange: getPropertyRange(property)
   };
 }
 
 /**
- * Crea un estado inicial del plugin
+ * Creates an initial plugin state
  */
 export function createInitialState(baseColor: OKLCHColor, steps: number = 10): PluginState {
   return {

@@ -17,10 +17,10 @@ import {
 const searchParams = new URLSearchParams(window.location.search);
 document.body.dataset.theme = searchParams.get("theme") ?? "light";
 
-// State management usando la nueva arquitectura
+// State management using the new architecture
 let pluginState: PluginState = createInitialState({ l: 0.5, c: 0.1, h: 0 }, 10);
 
-// Estado adicional para la UI
+// Additional state for the UI
 interface UIState {
   createAssets: boolean;
 }
@@ -38,7 +38,7 @@ const tabs = document.querySelectorAll('.tab');
 const functionBtns = document.querySelectorAll('.function-btn');
 const formulaDisplay = document.querySelector('.formula') as HTMLElement;
 const formulaIcon = document.querySelector('.formula-icon') as HTMLElement;
-// Estas variables se eliminan porque no se usan
+// These variables are removed because they are not used
 const paramSliders = document.querySelectorAll('.param-slider') as NodeListOf<HTMLInputElement>;
 const paramValues = document.querySelectorAll('.param-value') as NodeListOf<HTMLElement>;
 const createAssetsCheckbox = document.querySelector('.create-variables') as HTMLInputElement;
@@ -57,7 +57,7 @@ function setupEventListeners() {
   colorPicker.addEventListener('input', (e) => {
     const hex = (e.target as HTMLInputElement).value;
     pluginState.baseColor = hexToOklch(hex);
-    // Reinicializar la paleta con el nuevo color base
+    // Reinitialize the palette with the new base color
     pluginState.paletteData = initializePaletteData(pluginState.baseColor, pluginState.amountOfShades);
     pluginState = recalculatePalette(pluginState);
     updateUI();
@@ -67,13 +67,13 @@ function setupEventListeners() {
   shadesSlider.addEventListener('input', (e) => {
     pluginState.amountOfShades = parseInt((e.target as HTMLInputElement).value);
     shadeCount.textContent = pluginState.amountOfShades.toString();
-    // Reinicializar la paleta con el nuevo número de pasos
+    // Reinitialize the palette with the new number of steps
     pluginState.paletteData = initializePaletteData(pluginState.baseColor, pluginState.amountOfShades);
     pluginState = recalculatePalette(pluginState);
     updateUI();
   });
 
-  // Channel tabs - Cambiar propiedad activa
+  // Channel tabs - Change active property
   tabs.forEach((tab, index) => {
     tab.addEventListener('click', () => {
       tabs.forEach(t => t.classList.remove('active'));
@@ -82,46 +82,46 @@ function setupEventListeners() {
       const tabNames = ['Luminance', 'Chroma', 'Hue'] as const;
       pluginState.activeProperty = tabNames[index];
 
-      // La UI se actualizará para mostrar la configuración de la nueva propiedad activa
+      // The UI will update to show the configuration of the new active property
       updateUI();
     });
   });
 
-  // El botón fx ya no es necesario, el comportamiento se maneja con los botones de fórmula
+  // The fx button is no longer necessary, the behavior is handled with the formula buttons
 
-  // Function buttons - Toggle de curvas (activar/desactivar) para la propiedad activa
+  // Function buttons - Toggle curves (activate/deactivate) for the active property
   functionBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
       const curveTypes = ['Linear', 'Normal', 'Quad', 'Arctan', 'Sine', 'Expo'] as const;
       const btnText = btn.textContent as typeof curveTypes[number];
       const currentFormula = getActivePropertyFormula(pluginState);
 
-      // Si la curva ya está activa para esta propiedad, desactivarla
+      // If the curve is already active for this property, deactivate it
       if (currentFormula.activeCurve === btnText) {
         pluginState = updateActivePropertyFormula(pluginState, {
           activeCurve: null,
           curveParams: {}
         });
       } else {
-        // Activar la nueva curva para esta propiedad
+        // Activate the new curve for this property
         pluginState = updateActivePropertyFormula(pluginState, {
           activeCurve: btnText,
           curveParams: getDefaultParameters(btnText)
         });
       }
 
-      // Recalcular paleta
+      // Recalculate palette
       pluginState = recalculatePalette(pluginState);
       updateUI();
     });
   });
 
-  // Parameter sliders - Actualizar parámetros de curva para la propiedad activa
+  // Parameter sliders - Update curve parameters for the active property
   paramSliders.forEach((slider, index) => {
     slider.addEventListener('input', (e) => {
       const currentFormula = getActivePropertyFormula(pluginState);
-      
-      // Solo procesar si hay una curva activa para la propiedad actual
+
+      // Only process if there is an active curve for the current property
       if (!currentFormula.activeCurve) return;
 
       const rawValue = parseFloat((e.target as HTMLInputElement).value);
@@ -137,23 +137,23 @@ function setupEventListeners() {
           scaledValue = (rawValue / 100) * 2; // k parameter typically ranges 0-2
         }
 
-        // Actualizar los parámetros de la propiedad activa
+        // Update the parameters of the active property
         const newParams = { ...currentFormula.curveParams };
         newParams[labels[index] as keyof EasingParams] = scaledValue;
-        
+
         pluginState = updateActivePropertyFormula(pluginState, {
           curveParams: newParams
         });
 
-        // Recalcular paleta con nuevos parámetros
+        // Recalculate palette with new parameters
         pluginState = recalculatePalette(pluginState);
         updateUI();
       }
     });
   });
 
-  // Vertical sliders - Para ajuste manual de valores individuales
-  // Estos se crearán dinámicamente en updateVerticalSliders()
+  // Vertical sliders - For manual adjustment of individual values
+  // These will be created dynamically in updateVerticalSliders()
 
   // Create assets checkbox
   createAssetsCheckbox.addEventListener('change', (e) => {
@@ -229,12 +229,12 @@ function updateVerticalSliders() {
     // Update value display
     updateSliderValueDisplay(valueSpan, value, pluginState.activeProperty);
 
-    // Add event listener para modo manual
+    // Add event listener for manual mode
     slider.addEventListener('input', (e) => {
       const sliderValue = parseFloat((e.target as HTMLInputElement).value);
       updateSliderValueDisplay(valueSpan, sliderValue, pluginState.activeProperty);
 
-      // Al mover un slider manual, desactivar la fórmula para esa propiedad
+      // When moving a manual slider, deactivate the formula for that property
       const currentFormula = getActivePropertyFormula(pluginState);
       if (currentFormula.activeCurve !== null) {
         pluginState = updateActivePropertyFormula(pluginState, {
@@ -243,7 +243,7 @@ function updateVerticalSliders() {
         });
       }
 
-      // Actualizar el valor específico en paletteData
+      // Update the specific value in paletteData
       switch (pluginState.activeProperty) {
         case 'Luminance':
           pluginState.paletteData[i].l = sliderValue / 100;
@@ -256,7 +256,7 @@ function updateVerticalSliders() {
           break;
       }
 
-      // Recalcular solo los valores hex (modo manual)
+      // Recalculate only the hex values (manual mode)
       pluginState = recalculatePalette(pluginState);
       updatePalette();
     });
@@ -304,7 +304,7 @@ function updateParameterControls() {
     (group as HTMLElement).style.display = 'none';
   });
 
-  // Si hay una curva activa para la propiedad actual, mostrar sus parámetros
+  // If there is an active curve for the current property, show its parameters
   if (currentFormula.activeCurve) {
     const labels = getParameterLabels(currentFormula.activeCurve);
 
@@ -361,6 +361,39 @@ function updatePalette() {
   });
 }
 
+// Get formula initial for display
+function getFormulaInitial(formulaName: string | null): string {
+  if (!formulaName) return '';
+
+  switch (formulaName) {
+    case 'Linear': return 'L';
+    case 'Normal': return 'N';
+    case 'Quad': return 'Q';
+    case 'Arctan': return 'A';
+    case 'Sine': return 'S';
+    case 'Expo': return 'E';
+    default: return '';
+  }
+}
+
+// Update tab names with formula indicators
+function updateTabNames() {
+  const tabNames = ['Luminance', 'Chroma', 'Hue'] as const;
+
+  tabs.forEach((tab, index) => {
+    const propertyName = tabNames[index];
+    const formula = pluginState.formulas[propertyName];
+    const initial = getFormulaInitial(formula.activeCurve);
+
+    // Update tab text with or without formula indicator
+    if (initial) {
+      tab.textContent = `${propertyName.toUpperCase()} (${initial})`;
+    } else {
+      tab.textContent = propertyName.toUpperCase();
+    }
+  });
+}
+
 // Update UI
 function updateUI() {
   updateVerticalSliders();
@@ -373,7 +406,10 @@ function updateUI() {
   createAssetsCheckbox.checked = uiState.createAssets;
   updateButtonText();
 
-  // Actualizar tabs activos
+  // Update tab names with formula indicators
+  updateTabNames();
+
+  // Update active tabs
   tabs.forEach((tab, index) => {
     tab.classList.remove('active');
     const tabNames = ['Luminance', 'Chroma', 'Hue'];
@@ -382,7 +418,7 @@ function updateUI() {
     }
   });
 
-  // Actualizar botones de función activos para la propiedad actual
+  // Update active function buttons for the current property
   const currentFormula = getActivePropertyFormula(pluginState);
   functionBtns.forEach((btn) => {
     btn.classList.remove('active');
@@ -391,11 +427,11 @@ function updateUI() {
     }
   });
 
-  // Actualizar UI según el modo de edición
+  // Update UI according to editing mode
   updateModeUI();
 }
 
-// Actualizar UI según el modo de edición (Manual vs Formula)
+// Update UI according to editing mode (Manual vs Formula)
 function updateModeUI() {
   const slidersContainer = document.querySelector('.sliders-container') as HTMLElement;
   const functionLeft = document.querySelector('.function-left') as HTMLElement;
@@ -405,21 +441,21 @@ function updateModeUI() {
   const formulaPlaceholder = document.querySelector('.formula-placeholder') as HTMLElement;
   const currentFormula = getActivePropertyFormula(pluginState);
 
-  // Los sliders individuales siempre se muestran
+  // Individual sliders are always shown
   slidersContainer.style.display = 'flex';
 
-  // Los botones de fórmula (functionLeft) siempre se muestran
+  // Formula buttons (functionLeft) are always shown
   functionLeft.style.display = 'block';
 
   if (currentFormula.activeCurve === null) {
-    // Sin fórmula activa para la propiedad actual: mostrar placeholder y ocultar controles
+    // No active formula for the current property: show placeholder and hide controls
     functionRight.style.display = 'none';
-    functionCenter.style.display = 'flex'; // Mantener visible para mostrar el placeholder
+    functionCenter.style.display = 'flex'; // Keep visible to show the placeholder
     formulaDisplay.style.display = 'none';
     formulaPlaceholder.style.display = 'block';
     formulaIcon.classList.remove('active');
   } else {
-    // Con fórmula activa para la propiedad actual: mostrar controles y ocultar placeholder
+    // With active formula for the current property: show controls and hide placeholder
     functionRight.style.display = 'block';
     functionCenter.style.display = 'flex';
     formulaDisplay.style.display = 'block';
@@ -440,7 +476,7 @@ window.addEventListener("message", (event) => {
         pluginState.isNodeSelected = true;
         colorPicker.value = event.data.color;
 
-        // Reinicializar la paleta con el nuevo color base
+        // Reinitialize the palette with the new base color
         pluginState.paletteData = initializePaletteData(pluginState.baseColor, pluginState.amountOfShades);
         pluginState = recalculatePalette(pluginState);
         updateUI();
@@ -462,24 +498,24 @@ window.addEventListener("message", (event) => {
       if (event.data.assetsCreated) {
         console.log(`Created ${event.data.assetsCreated} color assets`);
       }
-      
+
       // Temporarily change button text to show success
       const originalText = addBtn.textContent;
       addBtn.textContent = uiState.createAssets ? 'Assets Created!' : 'Added to File!';
       addBtn.disabled = true;
-      
+
       setTimeout(() => {
         addBtn.textContent = originalText;
         addBtn.disabled = false;
       }, 2000);
     } else {
       console.error('❌ Failed to add palette:', event.data.error);
-      
+
       // Show error state
       const originalText = addBtn.textContent;
       addBtn.textContent = 'Error!';
       addBtn.style.backgroundColor = '#ff4444';
-      
+
       setTimeout(() => {
         addBtn.textContent = originalText;
         addBtn.style.backgroundColor = '';
