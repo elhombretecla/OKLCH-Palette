@@ -1,4 +1,4 @@
-# Penpot Plugin Starter Template
+# OKLCH Palette Plugin for Penpot
 
 This repository is designed to be your starting point for creating plugins for Penpot. It includes everything you need to get started quickly with development and build processes, so you can focus solely on coding. The template uses Vite as the bundler and comes pre-configured with TypeScript, though you can write your code in vanilla JavaScript if you prefer, while keeping TypeScript to handle Penpot typings in the `plugin.ts` file.
 

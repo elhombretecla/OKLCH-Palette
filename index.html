@@ -1,25 +1,137 @@
 <!DOCTYPE html>
-<html lang="en">
+  <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Penpot plugin example</title>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>OKLCH Palette Generator</title>
+      <link rel="stylesheet" href="plugin-ui.css">
   </head>
   <body>
-    <p>Penpot plugin starter template</p>
+      <div class="palette-plugin">
+          <!-- Palette Preview -->
+          <div class="palette-preview">
+              <div class="color-swatch" style="background: #000000"></div>
+              <div class="color-swatch" style="background: #1a1a1a"></div>
+              <div class="color-swatch" style="background: #333333"></div>
+              <div class="color-swatch" style="background: #4d4d4d"></div>
+              <div class="color-swatch" style="background: #666666"></div>
+              <div class="color-swatch" style="background: #808080"></div>
+              <div class="color-swatch" style="background: #999999"></div>
+              <div class="color-swatch" style="background: #b3b3b3"></div>
+              <div class="color-swatch" style="background: #cccccc"></div>
+              <div class="color-swatch" style="background: #ffffff"></div>
+          </div>
 
-    <p>
-      Checkout the
-      <a target="_blank" href="https://help.penpot.app/plugins/"
-        >documentation</a
-      >
-      to get started.
-    </p>
+          <!-- Controls Row -->
+          <div class="controls-row">
+              <div class="control-group">
+                  <label>Number of Shades</label>
+                  <input type="range" class="horizontal-slider" min="2" max="20" value="10">
+                  <span class="shade-count">10</span>
+              </div>
+              <div class="control-group">
+                  <label>Base Color</label>
+                  <input type="color" class="color-picker" value="#000000">
+              </div>
+          </div>
 
-    <button type="button" data-appearance="primary" data-handler="create-text">
-      Create text
-    </button>
+          <!-- Channel Tabs -->
+          <div class="channel-tabs">
+              <div class="tab active">Luminescence</div>
+              <div class="tab">Chroma</div>
+              <div class="tab">Hue</div>
+          </div>
 
-    <script type="module" src="/src/main.ts"></script>
+          <!-- Vertical Sliders -->
+          <div class="sliders-container">
+              <div class="slider-item">
+                  <input type="range" class="vertical-slider" min="0" max="100" value="0" orient="vertical">
+                  <span class="slider-value">0.00</span>
+              </div>
+              <div class="slider-item">
+                  <input type="range" class="vertical-slider" min="0" max="100" value="11" orient="vertical">
+                  <span class="slider-value">0.11</span>
+              </div>
+              <div class="slider-item">
+                  <input type="range" class="vertical-slider" min="0" max="100" value="23" orient="vertical">
+                  <span class="slider-value">0.23</span>
+              </div>
+              <div class="slider-item">
+                  <input type="range" class="vertical-slider" min="0" max="100" value="34" orient="vertical">
+                  <span class="slider-value">0.34</span>
+              </div>
+              <div class="slider-item">
+                  <input type="range" class="vertical-slider" min="0" max="100" value="46" orient="vertical">
+                  <span class="slider-value">0.46</span>
+              </div>
+              <div class="slider-item">
+                  <input type="range" class="vertical-slider" min="0" max="100" value="57" orient="vertical">
+                  <span class="slider-value">0.57</span>
+              </div>
+              <div class="slider-item">
+                  <input type="range" class="vertical-slider" min="0" max="100" value="69" orient="vertical">
+                  <span class="slider-value">0.69</span>
+              </div>
+              <div class="slider-item">
+                  <input type="range" class="vertical-slider" min="0" max="100" value="80" orient="vertical">
+                  <span class="slider-value">0.80</span>
+              </div>
+              <div class="slider-item">
+                  <input type="range" class="vertical-slider" min="0" max="100" value="91" orient="vertical">
+                  <span class="slider-value">0.91</span>
+              </div>
+              <div class="slider-item">
+                  <input type="range" class="vertical-slider" min="0" max="100" value="100" orient="vertical">
+                  <span class="slider-value">1.00</span>
+              </div>
+          </div>
+
+          <!-- Function Panel -->
+          <div class="function-panel">
+              <div class="function-left">
+                  <div class="function-buttons">
+                      <button class="function-btn active">Linear</button>
+                      <button class="function-btn">Normal</button>
+                      <button class="function-btn">Quad</button>
+                      <button class="function-btn">Arctan</button>
+                      <button class="function-btn">Sine</button>
+                      <button class="function-btn">Expo</button>
+                  </div>
+              </div>
+              
+              <div class="function-center">
+                  <div class="formula-icon">fx</div>
+                  <div class="formula-display">
+                      <div class="formula">y = mx + c</div>
+                      <p class="formula-hint">Vary the Parameters on the right, to modify the Curve.</p>
+                  </div>
+              </div>
+
+              <div class="function-right">
+                  <div class="parameter-group">
+                      <label class="param-label">m</label>
+                      <input type="range" class="param-slider" min="0" max="100" value="11">
+                      <span class="param-value">0.11</span>
+                  </div>
+                  <div class="parameter-group">
+                      <label class="param-label">c</label>
+                      <input type="range" class="param-slider" min="0" max="100" value="0">
+                      <span class="param-value">0.00</span>
+                  </div>
+              </div>
+          </div>
+
+          <!-- Bottom Actions -->
+          <div class="bottom-actions">
+            <label class="checkbox-label">
+                <input type="checkbox" class="create-variables">
+                Create as color assets
+            </label>
+              <div class="right-actions">
+                  <button class="add-btn" data-appearance="primary">Add to my file</button>
+              </div>
+          </div>
+      </div>
+      <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
