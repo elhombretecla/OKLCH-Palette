@@ -26,7 +26,7 @@ interface UIState {
 }
 
 let uiState: UIState = {
-  createAssets: true
+  createAssets: false // Start disabled as requested
 };
 
 // DOM elements
@@ -158,6 +158,7 @@ function setupEventListeners() {
   // Create assets checkbox
   createAssetsCheckbox.addEventListener('change', (e) => {
     uiState.createAssets = (e.target as HTMLInputElement).checked;
+    updateButtonText();
   });
 
   // Add button
@@ -174,6 +175,15 @@ function setupEventListeners() {
 // Request base color from selected object
 function requestBaseColor() {
   parent.postMessage({ type: 'get-base-color' }, "*");
+}
+
+// Update button text based on create assets state
+function updateButtonText() {
+  if (uiState.createAssets) {
+    addBtn.textContent = 'Add to my file + Create assets';
+  } else {
+    addBtn.textContent = 'Add to my file';
+  }
 }
 
 // Update vertical sliders based on current tab and steps
@@ -361,6 +371,7 @@ function updateUI() {
   shadeCount.textContent = pluginState.amountOfShades.toString();
   shadesSlider.value = pluginState.amountOfShades.toString();
   createAssetsCheckbox.checked = uiState.createAssets;
+  updateButtonText();
 
   // Actualizar tabs activos
   tabs.forEach((tab, index) => {
@@ -440,6 +451,39 @@ window.addEventListener("message", (event) => {
     } else {
       pluginState.isNodeSelected = false;
       console.log('No object selected or no color found');
+    }
+  } else if (event.data.type === "palette-added") {
+    // Handle palette addition response
+    if (event.data.success) {
+      console.log('✅ Palette added successfully');
+      if (event.data.message) {
+        console.log(event.data.message);
+      }
+      if (event.data.assetsCreated) {
+        console.log(`Created ${event.data.assetsCreated} color assets`);
+      }
+      
+      // Temporarily change button text to show success
+      const originalText = addBtn.textContent;
+      addBtn.textContent = uiState.createAssets ? 'Assets Created!' : 'Added to File!';
+      addBtn.disabled = true;
+      
+      setTimeout(() => {
+        addBtn.textContent = originalText;
+        addBtn.disabled = false;
+      }, 2000);
+    } else {
+      console.error('❌ Failed to add palette:', event.data.error);
+      
+      // Show error state
+      const originalText = addBtn.textContent;
+      addBtn.textContent = 'Error!';
+      addBtn.style.backgroundColor = '#ff4444';
+      
+      setTimeout(() => {
+        addBtn.textContent = originalText;
+        addBtn.style.backgroundColor = '';
+      }, 2000);
     }
   }
 });

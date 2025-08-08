@@ -137,12 +137,97 @@ function createPaletteRectangles(colors: string[]) {
 }
 
 // Add colors to document color library
-function addColorsToLibrary(colors: string[], baseName: string = 'Palette') {
-  // For now, we'll just create the rectangles as the color library API needs more investigation
-  console.log('Colors to add to library:', colors.map((color, index) => ({
-    name: `${baseName}-${(index + 1) * 100}`,
-    color
-  })));
+function addColorsToLibrary(colors: string[], groupName: string = 'new-palette') {
+  const assets: Array<{name: string, color: string, groupName: string}> = [];
+  
+  colors.forEach((color, index) => {
+    const colorName = generateColorName(color, index, colors.length);
+    const fullAssetName = `${groupName}/${colorName}`;
+    
+    try {
+      // Create the color asset in Penpot's library
+      const libraryColor = penpot.library.local.createColor();
+      libraryColor.name = fullAssetName;
+      libraryColor.color = color;
+      
+      assets.push({
+        name: colorName,
+        color: color,
+        groupName: groupName
+      });
+      
+      console.log(`✅ Created color asset: ${fullAssetName} (${color})`);
+    } catch (error) {
+      console.error(`❌ Failed to create color asset ${fullAssetName}:`, error);
+    }
+  });
+  
+  return assets;
+}
+
+/**
+ * Generate meaningful color names based on hex values
+ * Uses HSL to determine base color name and lightness level
+ */
+function generateColorName(hex: string, index: number, totalColors: number): string {
+  // Convert hex to RGB
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  
+  // Convert RGB to HSL
+  const rNorm = r / 255;
+  const gNorm = g / 255;
+  const bNorm = b / 255;
+  
+  const max = Math.max(rNorm, gNorm, bNorm);
+  const min = Math.min(rNorm, gNorm, bNorm);
+  const diff = max - min;
+  
+  let h = 0;
+  const l = (max + min) / 2;
+  const s = diff === 0 ? 0 : diff / (1 - Math.abs(2 * l - 1));
+  
+  if (diff !== 0) {
+    switch (max) {
+      case rNorm:
+        h = ((gNorm - bNorm) / diff) % 6;
+        break;
+      case gNorm:
+        h = (bNorm - rNorm) / diff + 2;
+        break;
+      case bNorm:
+        h = (rNorm - gNorm) / diff + 4;
+        break;
+    }
+  }
+  
+  h = Math.round(h * 60);
+  if (h < 0) h += 360;
+  
+  // Determine base color name from hue
+  let baseName = 'gray';
+  
+  if (s > 0.1) { // Only assign color names if there's sufficient saturation
+    if (h >= 0 && h < 15) baseName = 'red';
+    else if (h >= 15 && h < 45) baseName = 'orange';
+    else if (h >= 45 && h < 75) baseName = 'yellow';
+    else if (h >= 75 && h < 105) baseName = 'lime';
+    else if (h >= 105 && h < 135) baseName = 'green';
+    else if (h >= 135 && h < 165) baseName = 'teal';
+    else if (h >= 165 && h < 195) baseName = 'cyan';
+    else if (h >= 195 && h < 225) baseName = 'blue';
+    else if (h >= 225 && h < 255) baseName = 'indigo';
+    else if (h >= 255 && h < 285) baseName = 'purple';
+    else if (h >= 285 && h < 315) baseName = 'pink';
+    else if (h >= 315 && h < 345) baseName = 'rose';
+    else baseName = 'red';
+  }
+  
+  // Generate weight based on position in palette (100-900 scale)
+  const weight = Math.round(100 + (index / (totalColors - 1)) * 800);
+  
+  return `${baseName}-${weight}`;
 }
 
 // Handle messages from UI
@@ -163,14 +248,33 @@ penpot.ui.onMessage<PaletteMessage>((message) => {
         
         // Add to color library if requested
         if (message.createAssets) {
-          addColorsToLibrary(message.colors);
+          try {
+            const assets = addColorsToLibrary(message.colors, 'new-palette');
+            console.log(`✅ Successfully created ${assets.length} color assets`);
+            
+            // Show success message with details
+            penpot.ui.sendMessage({
+              type: 'palette-added',
+              success: true,
+              assetsCreated: assets.length,
+              message: `Created ${assets.length} color assets in "new-palette" group`
+            });
+          } catch (error) {
+            console.error('❌ Error creating color assets:', error);
+            penpot.ui.sendMessage({
+              type: 'palette-added',
+              success: false,
+              error: 'Failed to create color assets'
+            });
+          }
+        } else {
+          // Show success message for rectangles only
+          penpot.ui.sendMessage({
+            type: 'palette-added',
+            success: true,
+            message: 'Palette rectangles created successfully'
+          });
         }
-        
-        // Show success message
-        penpot.ui.sendMessage({
-          type: 'palette-added',
-          success: true
-        });
       }
       break;
   }
