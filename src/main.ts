@@ -390,6 +390,8 @@ function updateModeUI() {
   const functionLeft = document.querySelector('.function-left') as HTMLElement;
   const functionRight = document.querySelector('.function-right') as HTMLElement;
   const functionCenter = document.querySelector('.function-center') as HTMLElement;
+  const formulaDisplay = document.querySelector('.formula-display') as HTMLElement;
+  const formulaPlaceholder = document.querySelector('.formula-placeholder') as HTMLElement;
   const currentFormula = getActivePropertyFormula(pluginState);
 
   // Los sliders individuales siempre se muestran
@@ -399,14 +401,18 @@ function updateModeUI() {
   functionLeft.style.display = 'block';
 
   if (currentFormula.activeCurve === null) {
-    // Sin fórmula activa para la propiedad actual: ocultar controles de parámetros y fórmula
+    // Sin fórmula activa para la propiedad actual: mostrar placeholder y ocultar controles
     functionRight.style.display = 'none';
-    functionCenter.style.display = 'none';
+    functionCenter.style.display = 'flex'; // Mantener visible para mostrar el placeholder
+    formulaDisplay.style.display = 'none';
+    formulaPlaceholder.style.display = 'block';
     formulaIcon.classList.remove('active');
   } else {
-    // Con fórmula activa para la propiedad actual: mostrar controles de fórmula y parámetros
+    // Con fórmula activa para la propiedad actual: mostrar controles y ocultar placeholder
     functionRight.style.display = 'block';
     functionCenter.style.display = 'flex';
+    formulaDisplay.style.display = 'block';
+    formulaPlaceholder.style.display = 'none';
     formulaIcon.classList.add('active');
   }
 }

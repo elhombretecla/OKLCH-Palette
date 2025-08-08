@@ -84,7 +84,7 @@
   writing-mode: bt-lr;
   -webkit-appearance: slider-vertical;
   width: 20px;
-  height: 150px;
+  height: 130px;
   background: var(--db-quaternary);
   outline: none;
   border-radius: 10px;
@@ -113,6 +113,11 @@
   font-size: 12px;
   color: var(--df-secondary);
   font-family: 'Courier New', monospace;
+  background: var(--db-secondary);
+  border-radius: 4px;
+  padding: 4px 6px;
+  text-align: center;
+  width: 40px;
 }
 
 /* Controls Row */
@@ -232,16 +237,6 @@
   gap: 15px;
 }
 
-.formula-icon {
-  font-style: italic;
-  color: var(--da-primary);
-  font-size: 24px;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
 .formula-icon:hover {
   background: var(--db-quaternary);
 }
@@ -261,12 +256,28 @@
   color: var(--df-primary);
   font-style: italic;
   margin-bottom: 10px;
+  border-radius: 8px;
+  background: var(--db-tertiary);
+  padding: 10px 12px;
 }
 
 .formula-hint {
   font-size: 12px;
-  color: #888;
+  color: var(--df-secondary);
   line-height: 1.4;
+}
+
+.formula-placeholder {
+  text-align: center;
+  padding: 20px;
+}
+
+.placeholder-text {
+  font-size: 14px;
+  color: var(--df-secondary);
+  line-height: 1.4;
+  opacity: 0.7;
+  font-style: italic;
 }
 
 .function-right {
@@ -280,6 +291,7 @@
 .parameter-group {
   display: flex;
   align-items: center;
+  margin: 8px 0;
   gap: 15px;
 }
 
@@ -323,6 +335,9 @@
   font-family: 'Courier New', monospace;
   font-size: 14px;
   min-width: 40px;
+  background: var(--db-secondary);
+  border-radius: 4px;
+  padding: 4px 6px;
 }
 
 /* Bottom Actions */
