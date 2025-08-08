@@ -7,7 +7,8 @@ import {
   recalculatePalette,
   createInitialState,
   initializePaletteData,
-  getPropertyRange,
+  getActivePropertyFormula,
+  updateActivePropertyFormula,
   type PluginState,
   type EasingParams
 } from './color-converter';
@@ -81,39 +82,32 @@ function setupEventListeners() {
       const tabNames = ['Luminance', 'Chroma', 'Hue'] as const;
       pluginState.activeProperty = tabNames[index];
 
-      // Actualizar el rango de fórmula para la nueva propiedad
-      pluginState.formulaRange = getPropertyRange(pluginState.activeProperty);
-
-      // Si estamos en modo Formula, recalcular la paleta
-      if (pluginState.editMode === 'Formula') {
-        pluginState = recalculatePalette(pluginState);
-      }
-
+      // La UI se actualizará para mostrar la configuración de la nueva propiedad activa
       updateUI();
     });
   });
 
   // El botón fx ya no es necesario, el comportamiento se maneja con los botones de fórmula
 
-  // Function buttons - Toggle de curvas (activar/desactivar)
+  // Function buttons - Toggle de curvas (activar/desactivar) para la propiedad activa
   functionBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
       const curveTypes = ['Linear', 'Normal', 'Quad', 'Arctan', 'Sine', 'Expo'] as const;
       const btnText = btn.textContent as typeof curveTypes[number];
+      const currentFormula = getActivePropertyFormula(pluginState);
 
-      // Si la curva ya está activa, desactivarla
-      if (pluginState.easing.activeCurve === btnText) {
-        pluginState.easing.activeCurve = null;
-        pluginState.easing.curveParams = {};
-        pluginState.editMode = 'Manual';
+      // Si la curva ya está activa para esta propiedad, desactivarla
+      if (currentFormula.activeCurve === btnText) {
+        pluginState = updateActivePropertyFormula(pluginState, {
+          activeCurve: null,
+          curveParams: {}
+        });
       } else {
-        // Activar la nueva curva
-        functionBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-
-        pluginState.easing.activeCurve = btnText;
-        pluginState.easing.curveParams = getDefaultParameters(btnText);
-        pluginState.editMode = 'Formula';
+        // Activar la nueva curva para esta propiedad
+        pluginState = updateActivePropertyFormula(pluginState, {
+          activeCurve: btnText,
+          curveParams: getDefaultParameters(btnText)
+        });
       }
 
       // Recalcular paleta
@@ -122,14 +116,16 @@ function setupEventListeners() {
     });
   });
 
-  // Parameter sliders - Actualizar parámetros de curva
+  // Parameter sliders - Actualizar parámetros de curva para la propiedad activa
   paramSliders.forEach((slider, index) => {
     slider.addEventListener('input', (e) => {
-      // Solo procesar si hay una curva activa
-      if (!pluginState.easing.activeCurve) return;
+      const currentFormula = getActivePropertyFormula(pluginState);
+      
+      // Solo procesar si hay una curva activa para la propiedad actual
+      if (!currentFormula.activeCurve) return;
 
       const rawValue = parseFloat((e.target as HTMLInputElement).value);
-      const labels = getParameterLabels(pluginState.easing.activeCurve);
+      const labels = getParameterLabels(currentFormula.activeCurve);
       if (labels[index]) {
         // Scale the value based on parameter type and expected range
         let scaledValue = rawValue / 100;
@@ -141,7 +137,13 @@ function setupEventListeners() {
           scaledValue = (rawValue / 100) * 2; // k parameter typically ranges 0-2
         }
 
-        pluginState.easing.curveParams[labels[index] as keyof EasingParams] = scaledValue;
+        // Actualizar los parámetros de la propiedad activa
+        const newParams = { ...currentFormula.curveParams };
+        newParams[labels[index] as keyof EasingParams] = scaledValue;
+        
+        pluginState = updateActivePropertyFormula(pluginState, {
+          curveParams: newParams
+        });
 
         // Recalcular paleta con nuevos parámetros
         pluginState = recalculatePalette(pluginState);
@@ -222,9 +224,13 @@ function updateVerticalSliders() {
       const sliderValue = parseFloat((e.target as HTMLInputElement).value);
       updateSliderValueDisplay(valueSpan, sliderValue, pluginState.activeProperty);
 
-      // Cambiar a modo manual si no estamos ya en él
-      if (pluginState.editMode !== 'Manual') {
-        pluginState.editMode = 'Manual';
+      // Al mover un slider manual, desactivar la fórmula para esa propiedad
+      const currentFormula = getActivePropertyFormula(pluginState);
+      if (currentFormula.activeCurve !== null) {
+        pluginState = updateActivePropertyFormula(pluginState, {
+          activeCurve: null,
+          curveParams: {}
+        });
       }
 
       // Actualizar el valor específico en paletteData
@@ -270,8 +276,9 @@ function updateSliderValueDisplay(element: HTMLElement, value: number, property:
 
 // Update formula display
 function updateFormulaDisplay() {
-  if (pluginState.easing.activeCurve) {
-    formulaDisplay.textContent = getFormulaDisplay(pluginState.easing.activeCurve);
+  const currentFormula = getActivePropertyFormula(pluginState);
+  if (currentFormula.activeCurve) {
+    formulaDisplay.textContent = getFormulaDisplay(currentFormula.activeCurve);
   } else {
     formulaDisplay.textContent = '';
   }
@@ -280,15 +287,16 @@ function updateFormulaDisplay() {
 // Update parameter controls
 function updateParameterControls() {
   const parameterGroups = document.querySelectorAll('.parameter-group');
+  const currentFormula = getActivePropertyFormula(pluginState);
 
   // Hide all parameter groups first
   parameterGroups.forEach(group => {
     (group as HTMLElement).style.display = 'none';
   });
 
-  // Si hay una curva activa, mostrar sus parámetros
-  if (pluginState.easing.activeCurve) {
-    const labels = getParameterLabels(pluginState.easing.activeCurve);
+  // Si hay una curva activa para la propiedad actual, mostrar sus parámetros
+  if (currentFormula.activeCurve) {
+    const labels = getParameterLabels(currentFormula.activeCurve);
 
     // Show and update relevant parameter groups
     labels.forEach((label, index) => {
@@ -301,7 +309,7 @@ function updateParameterControls() {
         labelEl.textContent = label;
 
         // Scale the slider value based on parameter type
-        const paramValue = pluginState.easing.curveParams[label as keyof EasingParams] || 0;
+        const paramValue = currentFormula.curveParams[label as keyof EasingParams] || 0;
         let sliderValue = paramValue * 100;
         if (label === 'd') {
           sliderValue = (paramValue / 5) * 100; // d parameter ranges 0-5
@@ -318,11 +326,12 @@ function updateParameterControls() {
 
 // Update parameter values display
 function updateParameterValues() {
-  if (pluginState.easing.activeCurve) {
-    const labels = getParameterLabels(pluginState.easing.activeCurve);
+  const currentFormula = getActivePropertyFormula(pluginState);
+  if (currentFormula.activeCurve) {
+    const labels = getParameterLabels(currentFormula.activeCurve);
     labels.forEach((label, index) => {
       if (paramValues[index]) {
-        const paramValue = pluginState.easing.curveParams[label as keyof EasingParams] || 0;
+        const paramValue = currentFormula.curveParams[label as keyof EasingParams] || 0;
         paramValues[index].textContent = paramValue.toFixed(2);
       }
     });
@@ -362,10 +371,11 @@ function updateUI() {
     }
   });
 
-  // Actualizar botones de función activos
+  // Actualizar botones de función activos para la propiedad actual
+  const currentFormula = getActivePropertyFormula(pluginState);
   functionBtns.forEach((btn) => {
     btn.classList.remove('active');
-    if (pluginState.easing.activeCurve && btn.textContent === pluginState.easing.activeCurve) {
+    if (currentFormula.activeCurve && btn.textContent === currentFormula.activeCurve) {
       btn.classList.add('active');
     }
   });
@@ -380,6 +390,7 @@ function updateModeUI() {
   const functionLeft = document.querySelector('.function-left') as HTMLElement;
   const functionRight = document.querySelector('.function-right') as HTMLElement;
   const functionCenter = document.querySelector('.function-center') as HTMLElement;
+  const currentFormula = getActivePropertyFormula(pluginState);
 
   // Los sliders individuales siempre se muestran
   slidersContainer.style.display = 'flex';
@@ -387,13 +398,13 @@ function updateModeUI() {
   // Los botones de fórmula (functionLeft) siempre se muestran
   functionLeft.style.display = 'block';
 
-  if (pluginState.easing.activeCurve === null) {
-    // Sin fórmula activa: ocultar solo los controles de parámetros y la fórmula
+  if (currentFormula.activeCurve === null) {
+    // Sin fórmula activa para la propiedad actual: ocultar controles de parámetros y fórmula
     functionRight.style.display = 'none';
     functionCenter.style.display = 'none';
     formulaIcon.classList.remove('active');
   } else {
-    // Con fórmula activa: mostrar controles de fórmula y parámetros
+    // Con fórmula activa para la propiedad actual: mostrar controles de fórmula y parámetros
     functionRight.style.display = 'block';
     functionCenter.style.display = 'flex';
     formulaIcon.classList.add('active');

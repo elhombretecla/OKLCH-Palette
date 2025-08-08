@@ -28,13 +28,20 @@ export interface EasingParams {
   b?: number; // Específico para Arctan
 }
 
+// Configuración de fórmula para una propiedad específica
+export interface PropertyFormulaConfig {
+  activeCurve: 'Linear' | 'Normal' | 'Quad' | 'Arctan' | 'Sine' | 'Expo' | null;
+  curveParams: EasingParams;
+  formulaRange: {
+    from: number;
+    to: number;
+  };
+}
+
 // EL NUEVO Y MEJORADO ESTADO CENTRAL
 export interface PluginState {
   // ¿Qué propiedad maestra estamos editando ahora mismo?
   activeProperty: 'Luminance' | 'Chroma' | 'Hue';
-  
-  // ¿En qué modo de edición para la propiedad activa nos encontramos?
-  editMode: 'Manual' | 'Formula'; // Controlado por el botón 'fx'
   
   // El array de objetos que representa nuestra paleta. ESTA ES LA FUENTE DE VERDAD.
   paletteData: PaletteColor[];
@@ -44,16 +51,11 @@ export interface PluginState {
   baseColor: OKLCHColor;
   amountOfShades: number;
   
-  // La configuración de las curvas de easing
-  easing: {
-    activeCurve: 'Linear' | 'Normal' | 'Quad' | 'Arctan' | 'Sine' | 'Expo' | null; // null = ninguna fórmula activa
-    curveParams: EasingParams;
-  };
-  
-  // El rango [from, to] para el MODO FÓRMULA
-  formulaRange: {
-    from: number;
-    to: number;
+  // Configuración de fórmulas independiente para cada propiedad
+  formulas: {
+    Luminance: PropertyFormulaConfig;
+    Chroma: PropertyFormulaConfig;
+    Hue: PropertyFormulaConfig;
   };
   
   assetName: string;
@@ -113,33 +115,40 @@ export function oklchToHex(l: number, c: number, h: number): string {
  */
 export function recalculatePalette(state: PluginState): PluginState {
   const newState = { ...state };
+  const steps = state.amountOfShades;
   
-  // Identificar si hay una fórmula activa
-  if (state.easing.activeCurve !== null) {
-    // Modo fórmula - aplicar la curva activa
-    const steps = state.amountOfShades;
-    const easedValues = generateCurveValues(steps, state.easing.activeCurve, state.easing.curveParams);
+  // Aplicar fórmulas a cada propiedad independientemente
+  const properties: Array<keyof typeof state.formulas> = ['Luminance', 'Chroma', 'Hue'];
+  
+  properties.forEach(property => {
+    const formulaConfig = state.formulas[property];
     
-    // Para cada color en paletteData, actualizar la propiedad activa
-    for (let i = 0; i < newState.paletteData.length; i++) {
-      const easedFactor = easedValues[i];
-      const newValue = state.formulaRange.from + (state.formulaRange.to - state.formulaRange.from) * easedFactor;
+    if (formulaConfig.activeCurve !== null) {
+      // Hay una fórmula activa para esta propiedad
+      const easedValues = generateCurveValues(steps, formulaConfig.activeCurve, formulaConfig.curveParams);
       
-      // Actualizar solo la propiedad activa
-      switch (state.activeProperty) {
-        case 'Luminance':
-          newState.paletteData[i].l = Math.max(0, Math.min(1, newValue));
-          break;
-        case 'Chroma':
-          newState.paletteData[i].c = Math.max(0, Math.min(0.4, newValue));
-          break;
-        case 'Hue':
-          newState.paletteData[i].h = newValue % 360;
-          break;
+      // Aplicar la fórmula a todos los colores para esta propiedad
+      for (let i = 0; i < newState.paletteData.length; i++) {
+        const easedFactor = easedValues[i];
+        const newValue = formulaConfig.formulaRange.from + 
+          (formulaConfig.formulaRange.to - formulaConfig.formulaRange.from) * easedFactor;
+        
+        // Actualizar la propiedad específica
+        switch (property) {
+          case 'Luminance':
+            newState.paletteData[i].l = Math.max(0, Math.min(1, newValue));
+            break;
+          case 'Chroma':
+            newState.paletteData[i].c = Math.max(0, Math.min(0.4, newValue));
+            break;
+          case 'Hue':
+            newState.paletteData[i].h = newValue % 360;
+            break;
+        }
       }
     }
-  }
-  // Si no hay fórmula activa, los valores ya están definidos por los sliders individuales
+    // Si no hay fórmula activa para esta propiedad, mantener los valores manuales
+  });
   
   // Paso final: actualizar los valores hex de todos los colores
   for (let i = 0; i < newState.paletteData.length; i++) {
@@ -153,10 +162,10 @@ export function recalculatePalette(state: PluginState): PluginState {
 /**
  * Calcula el factor eased para un valor x usando la curva especificada
  */
-export function calculateEasedFactor(x: number, easing: PluginState['easing']): number {
-  const params = easing.curveParams;
+export function calculateEasedFactor(x: number, formulaConfig: PropertyFormulaConfig): number {
+  const params = formulaConfig.curveParams;
   
-  switch (easing.activeCurve) {
+  switch (formulaConfig.activeCurve) {
     case 'Linear':
       return (params.m || 1) * x + (params.c || 0);
     case 'Normal':
@@ -259,7 +268,7 @@ export function generateCustomPalette(baseColor: OKLCHColor, lightnessValues: nu
 /**
  * Generate curve values based on different mathematical functions
  */
-function generateCurveValues(steps: number, curveType: string | PluginState['easing']['activeCurve'], params: { [key: string]: number } | EasingParams): number[] {
+function generateCurveValues(steps: number, curveType: string | PropertyFormulaConfig['activeCurve'], params: { [key: string]: number } | EasingParams): number[] {
   const values: number[] = [];
   
   if (!curveType) {
@@ -324,7 +333,7 @@ function generateCurveValues(steps: number, curveType: string | PluginState['eas
 /**
  * Get default parameters for each curve type
  */
-export function getDefaultParameters(curveType: string | PluginState['easing']['activeCurve']): EasingParams {
+export function getDefaultParameters(curveType: string | PropertyFormulaConfig['activeCurve']): EasingParams {
   if (!curveType) return {};
   
   switch (curveType.toLowerCase()) {
@@ -354,7 +363,7 @@ export function getDefaultParameters(curveType: string | PluginState['easing']['
 /**
  * Get formula display for each curve type
  */
-export function getFormulaDisplay(curveType: string | PluginState['easing']['activeCurve']): string {
+export function getFormulaDisplay(curveType: string | PropertyFormulaConfig['activeCurve']): string {
   if (!curveType) return '';
   
   switch (curveType.toLowerCase()) {
@@ -378,7 +387,7 @@ export function getFormulaDisplay(curveType: string | PluginState['easing']['act
 /**
  * Get parameter labels for each curve type
  */
-export function getParameterLabels(curveType: string | PluginState['easing']['activeCurve']): string[] {
+export function getParameterLabels(curveType: string | PropertyFormulaConfig['activeCurve']): string[] {
   if (!curveType) return [];
   
   switch (curveType.toLowerCase()) {
@@ -416,21 +425,54 @@ export function getPropertyRange(property: PluginState['activeProperty']): { fro
 }
 
 /**
+ * Obtiene la configuración de fórmula para la propiedad activa
+ */
+export function getActivePropertyFormula(state: PluginState): PropertyFormulaConfig {
+  return state.formulas[state.activeProperty];
+}
+
+/**
+ * Actualiza la configuración de fórmula para la propiedad activa
+ */
+export function updateActivePropertyFormula(
+  state: PluginState, 
+  updates: Partial<PropertyFormulaConfig>
+): PluginState {
+  const newState = { ...state };
+  newState.formulas = { ...state.formulas };
+  newState.formulas[state.activeProperty] = {
+    ...state.formulas[state.activeProperty],
+    ...updates
+  };
+  return newState;
+}
+
+/**
+ * Crea una configuración de fórmula inicial para una propiedad
+ */
+function createPropertyFormulaConfig(property: 'Luminance' | 'Chroma' | 'Hue'): PropertyFormulaConfig {
+  return {
+    activeCurve: null, // Por defecto no hay ninguna fórmula activa
+    curveParams: {},
+    formulaRange: getPropertyRange(property)
+  };
+}
+
+/**
  * Crea un estado inicial del plugin
  */
 export function createInitialState(baseColor: OKLCHColor, steps: number = 10): PluginState {
   return {
     activeProperty: 'Luminance',
-    editMode: 'Manual', // Por defecto empezamos en modo manual
     paletteData: initializePaletteData(baseColor, steps),
     isNodeSelected: false,
     baseColor,
     amountOfShades: steps,
-    easing: {
-      activeCurve: null, // Por defecto no hay ninguna fórmula activa
-      curveParams: {}
+    formulas: {
+      Luminance: createPropertyFormulaConfig('Luminance'),
+      Chroma: createPropertyFormulaConfig('Chroma'),
+      Hue: createPropertyFormulaConfig('Hue')
     },
-    formulaRange: getPropertyRange('Luminance'),
     assetName: 'Palette'
   };
 }
