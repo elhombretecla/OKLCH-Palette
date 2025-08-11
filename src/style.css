@@ -88,6 +88,7 @@
   background: var(--db-quaternary);
   outline: none;
   border-radius: 10px;
+  accent-color: var(--da-primary);
 }
 
 .vertical-slider::-webkit-slider-thumb {
