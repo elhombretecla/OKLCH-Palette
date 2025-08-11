@@ -10,8 +10,8 @@
   width: 100%;
   max-width: 800px;
   margin: 0 auto;
-  padding: 20px;
-  background: #1a1a1a;
+  padding: 20px 0;
+  background: var(--db-primary);
 }
 
 /* Palette Preview */
@@ -118,7 +118,25 @@
   border-radius: 4px;
   padding: 4px 6px;
   text-align: center;
-  width: 40px;
+  width: 44px;
+  border: none;
+  outline: none;
+  cursor: text;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  appearance: none;
+}
+
+.slider-value::-webkit-outer-spin-button,
+.slider-value::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.slider-value:focus {
+  background: var(--db-tertiary);
+  color: var(--da-primary);
+  box-shadow: 0 0 0 2px var(--da-primary);
 }
 
 /* Controls Row */
@@ -335,10 +353,29 @@
   color: var(--df-secondary);
   font-family: 'Courier New', monospace;
   font-size: 14px;
-  min-width: 40px;
+  min-width: 55px;
   background: var(--db-secondary);
   border-radius: 4px;
   padding: 4px 6px;
+  border: none;
+  outline: none;
+  cursor: text;
+  text-align: center;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  appearance: none;
+}
+
+.param-value::-webkit-outer-spin-button,
+.param-value::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.param-value:focus {
+  background: var(--db-tertiary);
+  color: var(--da-primary);
+  box-shadow: 0 0 0 2px var(--da-primary);
 }
 
 /* Bottom Actions */
@@ -383,39 +420,39 @@
 /* Responsive Design */
 @media (max-width: 620px) {
   .palette-plugin {
-      padding: 15px;
+    padding: 15px;
   }
-  
+
   .sliders-container {
-      padding: 15px;
+    padding: 15px;
   }
-  
+
   .vertical-slider {
-      height: 120px;
+    height: 120px;
   }
-  
+
   .function-panel {
-      flex-direction: column;
-      gap: 15px;
+    flex-direction: column;
+    gap: 15px;
   }
-  
+
   .controls-row {
-      flex-direction: column;
-      gap: 15px;
-      align-items: stretch;
+    flex-direction: column;
+    gap: 15px;
+    align-items: stretch;
   }
-  
+
   .control-group {
-      justify-content: space-between;
+    justify-content: space-between;
   }
-  
+
   .bottom-actions {
-      flex-direction: column;
-      gap: 15px;
-      align-items: stretch;
+    flex-direction: column;
+    gap: 15px;
+    align-items: stretch;
   }
-  
+
   .right-actions {
-      justify-content: space-between;
+    justify-content: space-between;
   }
 }

@@ -201,8 +201,9 @@ function updateVerticalSliders() {
     slider.min = '0';
     slider.setAttribute('orient', 'vertical');
 
-    const valueSpan = document.createElement('span');
-    valueSpan.className = 'slider-value';
+    const valueInput = document.createElement('input');
+    valueInput.type = 'number';
+    valueInput.className = 'slider-value';
 
     // Set ranges and values based on current active property
     let value = 0;
@@ -227,12 +228,12 @@ function updateVerticalSliders() {
     slider.value = value.toString();
 
     // Update value display
-    updateSliderValueDisplay(valueSpan, value, pluginState.activeProperty);
+    updateSliderValueDisplay(valueInput, value, pluginState.activeProperty);
 
     // Add event listener for manual mode
     slider.addEventListener('input', (e) => {
       const sliderValue = parseFloat((e.target as HTMLInputElement).value);
-      updateSliderValueDisplay(valueSpan, sliderValue, pluginState.activeProperty);
+      updateSliderValueDisplay(valueInput, sliderValue, pluginState.activeProperty);
 
       // When moving a manual slider, deactivate the formula for that property
       const currentFormula = getActivePropertyFormula(pluginState);
@@ -261,23 +262,81 @@ function updateVerticalSliders() {
       updatePalette();
     });
 
+    // Add event listener for numeric input changes
+    valueInput.addEventListener('input', (e) => {
+      const inputValue = parseFloat((e.target as HTMLInputElement).value);
+      if (isNaN(inputValue)) return;
+
+      // When editing a numeric input, deactivate the formula for that property
+      const currentFormula = getActivePropertyFormula(pluginState);
+      if (currentFormula.activeCurve !== null) {
+        pluginState = updateActivePropertyFormula(pluginState, {
+          activeCurve: null,
+          curveParams: {}
+        });
+      }
+
+      // Update the slider and palette data based on the input value
+      let sliderValue = inputValue;
+      switch (pluginState.activeProperty) {
+        case 'Luminance':
+          sliderValue = inputValue * 100;
+          pluginState.paletteData[i].l = inputValue;
+          break;
+        case 'Chroma':
+          sliderValue = (inputValue / 0.4) * 40;
+          pluginState.paletteData[i].c = inputValue;
+          break;
+        case 'Hue':
+          sliderValue = inputValue;
+          pluginState.paletteData[i].h = inputValue;
+          break;
+      }
+
+      // Update the corresponding slider
+      slider.value = Math.max(0, Math.min(maxRange, sliderValue)).toString();
+
+      // Recalculate palette
+      pluginState = recalculatePalette(pluginState);
+      updatePalette();
+    });
+
+    // Set input attributes based on property type
+    switch (pluginState.activeProperty) {
+      case 'Luminance':
+        valueInput.min = '0';
+        valueInput.max = '1';
+        valueInput.step = '0.01';
+        break;
+      case 'Chroma':
+        valueInput.min = '0';
+        valueInput.max = '0.4';
+        valueInput.step = '0.01';
+        break;
+      case 'Hue':
+        valueInput.min = '0';
+        valueInput.max = '360';
+        valueInput.step = '1';
+        break;
+    }
+
     sliderItem.appendChild(slider);
-    sliderItem.appendChild(valueSpan);
+    sliderItem.appendChild(valueInput);
     container.appendChild(sliderItem);
   }
 }
 
 // Update slider value display based on active property
-function updateSliderValueDisplay(element: HTMLElement, value: number, property: PluginState['activeProperty']) {
+function updateSliderValueDisplay(element: HTMLInputElement, value: number, property: PluginState['activeProperty']) {
   switch (property) {
     case 'Luminance':
-      element.textContent = (value / 100).toFixed(2);
+      element.value = (value / 100).toFixed(2);
       break;
     case 'Chroma':
-      element.textContent = ((value / 40) * 0.4).toFixed(2);
+      element.value = ((value / 40) * 0.4).toFixed(2);
       break;
     case 'Hue':
-      element.textContent = Math.round(value).toString();
+      element.value = Math.round(value).toString();
       break;
   }
 }
@@ -314,7 +373,7 @@ function updateParameterControls() {
         (parameterGroups[index] as HTMLElement).style.display = 'flex';
         const labelEl = parameterGroups[index].querySelector('.param-label') as HTMLElement;
         const sliderEl = parameterGroups[index].querySelector('.param-slider') as HTMLInputElement;
-        const valueEl = parameterGroups[index].querySelector('.param-value') as HTMLElement;
+        const valueEl = parameterGroups[index].querySelector('.param-value') as HTMLInputElement;
 
         labelEl.textContent = label;
 
@@ -328,7 +387,52 @@ function updateParameterControls() {
         }
 
         sliderEl.value = sliderValue.toString();
-        valueEl.textContent = paramValue.toFixed(2);
+        valueEl.value = paramValue.toFixed(2);
+
+        // Set input attributes based on parameter type
+        valueEl.type = 'number';
+        valueEl.step = '0.01';
+        if (label === 'd') {
+          valueEl.min = '0';
+          valueEl.max = '5';
+        } else if (label === 'k') {
+          valueEl.min = '0';
+          valueEl.max = '2';
+        } else {
+          valueEl.min = '0';
+          valueEl.max = '1';
+        }
+
+        // Remove existing event listeners to avoid duplicates
+        const newValueEl = valueEl.cloneNode(true) as HTMLInputElement;
+        valueEl.parentNode?.replaceChild(newValueEl, valueEl);
+
+        // Add event listener for direct numeric input
+        newValueEl.addEventListener('input', (e) => {
+          const inputValue = parseFloat((e.target as HTMLInputElement).value);
+          if (isNaN(inputValue)) return;
+
+          // Update the parameters of the active property
+          const newParams = { ...currentFormula.curveParams };
+          newParams[label as keyof EasingParams] = inputValue;
+
+          pluginState = updateActivePropertyFormula(pluginState, {
+            curveParams: newParams
+          });
+
+          // Update the corresponding slider
+          let newSliderValue = inputValue * 100;
+          if (label === 'd') {
+            newSliderValue = (inputValue / 5) * 100;
+          } else if (label === 'k') {
+            newSliderValue = (inputValue / 2) * 100;
+          }
+          sliderEl.value = newSliderValue.toString();
+
+          // Recalculate palette with new parameters
+          pluginState = recalculatePalette(pluginState);
+          updatePalette();
+        });
       }
     });
   }
@@ -342,7 +446,7 @@ function updateParameterValues() {
     labels.forEach((label, index) => {
       if (paramValues[index]) {
         const paramValue = currentFormula.curveParams[label as keyof EasingParams] || 0;
-        paramValues[index].textContent = paramValue.toFixed(2);
+        (paramValues[index] as HTMLInputElement).value = paramValue.toFixed(2);
       }
     });
   }
