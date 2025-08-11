@@ -1,5 +1,19 @@
 @import "@penpot/plugin-styles/styles.css";
 
+/* Light theme variables */
+body[data-theme="light"] {
+  --db-primary: #ffffff;
+  --db-secondary: #f8f9fa;
+  --db-tertiary: #e9ecef;
+  --db-quaternary: #dee2e6;
+  
+  --df-primary: #212529;
+  --df-secondary: #6c757d;
+  
+  --da-primary: var(--la-primary);
+  --da-primary-muted: #e6d7ff;
+}
+
 * {
   margin: 0;
   padding: 0;
