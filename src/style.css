@@ -39,6 +39,7 @@
   padding: 2px;
   overflow: hidden;
   font-size: 14px;
+  height: 34px;
 }
 
 .tab {
@@ -219,12 +220,13 @@
 }
 
 .function-buttons {
+  background: var(--db-secondary);
+  border-radius: 8px;
   display: flex;
   justify-content: center;
-  background: var(--db-secondary);
   gap: 2px;
   padding: 2px;
-  border-radius: 8px;
+  min-width: 470px;
 }
 
 .function-btn {
@@ -284,6 +286,19 @@
   font-size: 12px;
   color: var(--df-secondary);
   line-height: 1.4;
+}
+
+.formula-indicator {
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  width: 18px;
+  background: var(--da-primary-muted);
+  border-radius: 50%;
+  font-size: 12px;
+  color: var(--da-primary);
 }
 
 .formula-placeholder {
@@ -398,11 +413,12 @@
 }
 
 .checkbox-label {
-  display: flex;
   align-items: center;
-  gap: 8px;
   color: var(--df-secondary);
   cursor: pointer;
+  display: flex;
+  gap: 8px;
+  font-size: 14px;
 }
 
 .create-variables {
@@ -425,6 +441,7 @@
 
   .sliders-container {
     padding: 15px;
+    overflow: scroll;
   }
 
   .vertical-slider {
@@ -434,6 +451,7 @@
   .function-panel {
     flex-direction: column;
     gap: 15px;
+    overflow: scroll;
   }
 
   .controls-row {

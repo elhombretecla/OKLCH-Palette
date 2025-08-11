@@ -489,11 +489,21 @@ function updateTabNames() {
     const formula = pluginState.formulas[propertyName];
     const initial = getFormulaInitial(formula.activeCurve);
 
-    // Update tab text with or without formula indicator
+    // Clear existing content
+    tab.innerHTML = '';
+    
+    // Add the property name
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'tab-name';
+    nameSpan.textContent = propertyName.toUpperCase();
+    tab.appendChild(nameSpan);
+
+    // Add formula indicator if there's an active formula
     if (initial) {
-      tab.textContent = `${propertyName.toUpperCase()} (${initial})`;
-    } else {
-      tab.textContent = propertyName.toUpperCase();
+      const formulaSpan = document.createElement('span');
+      formulaSpan.className = 'formula-indicator';
+      formulaSpan.textContent = ` ${initial}`;
+      tab.appendChild(formulaSpan);
     }
   });
 }
