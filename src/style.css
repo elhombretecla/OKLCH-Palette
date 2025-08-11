@@ -72,6 +72,7 @@
   border: 1px solid var(--db-quaternary);
   border-radius: 8px;
   padding: 20px;
+  overflow: auto;
 }
 
 .slider-item {
@@ -213,6 +214,7 @@
   padding: 20px;
   border: 1px solid var(--db-quaternary);
   border-radius: 8px;
+  overflow: auto;
 }
 
 .function-left {
@@ -401,7 +403,7 @@
   bottom: 0;
   justify-content: space-between;
   left: 0;
-  padding: 10px 20px;
+  padding: 10px;
   position: fixed;
   width: 100%;
 }
@@ -441,7 +443,6 @@
 
   .sliders-container {
     padding: 15px;
-    overflow: scroll;
   }
 
   .vertical-slider {
@@ -451,7 +452,6 @@
   .function-panel {
     flex-direction: column;
     gap: 15px;
-    overflow: scroll;
   }
 
   .controls-row {

@@ -75,6 +75,10 @@ OKLCH (OK Lightness Chroma Hue) is a perceptually uniform color space that provi
 
 This ensures that color variations appear more natural and accessible compared to traditional RGB-based palette generation.
 
+## Acknowledgments
+
+Special thanks to Abhishek Y for the inspiration ❤️
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
