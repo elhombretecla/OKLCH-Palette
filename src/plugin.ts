@@ -107,32 +107,61 @@ function getBaseColorFromSelection(): string | null {
 
 
 
-// Create rectangles in canvas for palette preview
+// Create rectangles in canvas for palette preview grouped in a board with flex layout
 function createPaletteRectangles(colors: string[]) {
   const rectangles: any[] = [];
   const rectWidth = 100;
   const rectHeight = 100;
-  const spacing = 10;
-  const startX = penpot.viewport.center.x - (colors.length * (rectWidth + spacing)) / 2;
-  const startY = penpot.viewport.center.y - rectHeight / 2;
+  const gap = 4;
+  const boardPadding = 20;
   
-  colors.forEach((color, index) => {
-    const rect = penpot.createRectangle();
-    if (rect) {
-      rect.x = startX + index * (rectWidth + spacing);
-      rect.y = startY;
-      rect.resize(rectWidth, rectHeight);
-      
-      // Set fill color
-      rect.fills = [{ fillColor: color, fillOpacity: 1 }];
-      
-      rectangles.push(rect);
-    }
-  });
+  // Calculate board dimensions - flex will handle the exact sizing
+  const estimatedBoardWidth = colors.length * rectWidth + (colors.length - 1) * gap + (boardPadding * 2);
+  const boardHeight = rectHeight + (boardPadding * 2);
   
-  // Select all created rectangles
-  if (rectangles.length > 0) {
-    penpot.selection = rectangles;
+  // Create the board/frame
+  const board = penpot.createBoard();
+  if (board) {
+    // Position board at viewport center
+    board.x = penpot.viewport.center.x - estimatedBoardWidth / 2;
+    board.y = penpot.viewport.center.y - boardHeight / 2;
+    board.resize(estimatedBoardWidth, boardHeight);
+    board.name = "new-palette";
+    
+    // Remove board background (transparent)
+    board.fills = [];
+    
+    // Add flex layout to the board
+    const flexLayout = board.addFlexLayout();
+    
+    // Configure flex layout properties
+    flexLayout.dir = "row";
+    flexLayout.alignItems = "center";
+    flexLayout.justifyContent = "center";
+    flexLayout.columnGap = gap;
+    flexLayout.topPadding = boardPadding;
+    flexLayout.rightPadding = boardPadding;
+    flexLayout.bottomPadding = boardPadding;
+    flexLayout.leftPadding = boardPadding;
+    
+    // Create rectangles inside the board - flex will position them automatically
+    colors.forEach((color) => {
+      const rect = penpot.createRectangle();
+      if (rect) {
+        // Set rectangle size
+        rect.resize(rectWidth, rectHeight);
+        
+        // Set fill color
+        rect.fills = [{ fillColor: color, fillOpacity: 1 }];
+        
+        // Add rectangle to board - flex layout will handle positioning
+        board.appendChild(rect);
+        rectangles.push(rect);
+      }
+    });
+    
+    // Select the board (which contains all rectangles)
+    penpot.selection = [board];
   }
 }
 
