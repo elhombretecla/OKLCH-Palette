@@ -343,9 +343,15 @@
 
 /* Bottom Actions */
 .bottom-actions {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
+  display: flex;
+  background: var(--db-primary);
+  bottom: 0;
+  justify-content: space-between;
+  left: 0;
+  padding: 10px 20px;
+  position: fixed;
+  width: 100%;
 }
 
 .right-actions {
