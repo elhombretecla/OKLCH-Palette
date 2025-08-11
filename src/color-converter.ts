@@ -46,6 +46,9 @@ export interface PluginState {
   // The array of objects that represents our palette. THIS IS THE SOURCE OF TRUTH.
   paletteData: PaletteColor[];
 
+  // Original palette data before any formulas were applied (for reset functionality)
+  originalPaletteData: PaletteColor[] | null;
+
   // The rest of the state we already know
   isNodeSelected: boolean;
   baseColor: OKLCHColor;
@@ -462,9 +465,11 @@ function createPropertyFormulaConfig(property: 'Luminance' | 'Chroma' | 'Hue'): 
  * Creates an initial plugin state
  */
 export function createInitialState(baseColor: OKLCHColor, steps: number = 10): PluginState {
+  const paletteData = initializePaletteData(baseColor, steps);
   return {
     activeProperty: 'Luminance',
-    paletteData: initializePaletteData(baseColor, steps),
+    paletteData,
+    originalPaletteData: null, // Will be set when first formula is applied
     isNodeSelected: false,
     baseColor,
     amountOfShades: steps,
@@ -475,4 +480,45 @@ export function createInitialState(baseColor: OKLCHColor, steps: number = 10): P
     },
     assetName: 'Palette'
   };
+}
+
+/**
+ * Saves the current palette state as the original state (for reset functionality)
+ */
+export function saveOriginalPaletteState(state: PluginState): PluginState {
+  if (state.originalPaletteData === null) {
+    // Only save if we haven't saved before
+    return {
+      ...state,
+      originalPaletteData: state.paletteData.map(color => ({ ...color }))
+    };
+  }
+  return state;
+}
+
+/**
+ * Resets the palette to its original state and clears all formulas
+ */
+export function resetPaletteToOriginal(state: PluginState): PluginState {
+  if (state.originalPaletteData === null) {
+    return state; // Nothing to reset
+  }
+
+  return {
+    ...state,
+    paletteData: state.originalPaletteData.map(color => ({ ...color })),
+    originalPaletteData: null, // Clear the saved state
+    formulas: {
+      Luminance: createPropertyFormulaConfig('Luminance'),
+      Chroma: createPropertyFormulaConfig('Chroma'),
+      Hue: createPropertyFormulaConfig('Hue')
+    }
+  };
+}
+
+/**
+ * Checks if any formula is currently active across all properties
+ */
+export function hasAnyActiveFormula(state: PluginState): boolean {
+  return Object.values(state.formulas).some(formula => formula.activeCurve !== null);
 }

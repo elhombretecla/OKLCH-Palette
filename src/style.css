@@ -273,15 +273,34 @@
   text-align: center;
 }
 
+.formula-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
 .formula {
   font-family: 'Courier New', monospace;
   font-size: 18px;
   color: var(--df-primary);
   font-style: italic;
-  margin-bottom: 10px;
   border-radius: 8px;
   background: var(--db-tertiary);
   padding: 10px 12px;
+}
+
+.reset-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  font-family: "Work Sans", sans-serif;
+  font-weight: 500;
 }
 
 .formula-hint {

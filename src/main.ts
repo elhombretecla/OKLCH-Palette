@@ -9,6 +9,9 @@ import {
   initializePaletteData,
   getActivePropertyFormula,
   updateActivePropertyFormula,
+  saveOriginalPaletteState,
+  resetPaletteToOriginal,
+  hasAnyActiveFormula,
   type PluginState,
   type EasingParams
 } from './color-converter';
@@ -37,12 +40,13 @@ const shadeCount = document.querySelector('.shade-count') as HTMLElement;
 const tabs = document.querySelectorAll('.tab');
 const functionBtns = document.querySelectorAll('.function-btn');
 const formulaDisplay = document.querySelector('.formula') as HTMLElement;
-const formulaIcon = document.querySelector('.formula-icon') as HTMLElement;
+// const formulaIcon = document.querySelector('.formula-icon') as HTMLElement; // Not used in current HTML
 // These variables are removed because they are not used
 const paramSliders = document.querySelectorAll('.param-slider') as NodeListOf<HTMLInputElement>;
 const paramValues = document.querySelectorAll('.param-value') as NodeListOf<HTMLElement>;
 const createAssetsCheckbox = document.querySelector('.create-variables') as HTMLInputElement;
 const addBtn = document.querySelector('.add-btn') as HTMLButtonElement;
+const resetBtn = document.querySelector('.reset-btn') as HTMLButtonElement;
 
 // Initialize the app
 function init() {
@@ -59,6 +63,14 @@ function setupEventListeners() {
     pluginState.baseColor = hexToOklch(hex);
     // Reinitialize the palette with the new base color
     pluginState.paletteData = initializePaletteData(pluginState.baseColor, pluginState.amountOfShades);
+    // Clear original state since we're starting fresh with a new base color
+    pluginState.originalPaletteData = null;
+    // Reset all formulas since we have a new base color
+    pluginState.formulas = {
+      Luminance: { activeCurve: null, curveParams: {}, formulaRange: { from: 0, to: 1 } },
+      Chroma: { activeCurve: null, curveParams: {}, formulaRange: { from: 0, to: 0.4 } },
+      Hue: { activeCurve: null, curveParams: {}, formulaRange: { from: 0, to: 360 } }
+    };
     pluginState = recalculatePalette(pluginState);
     updateUI();
   });
@@ -69,6 +81,14 @@ function setupEventListeners() {
     shadeCount.textContent = pluginState.amountOfShades.toString();
     // Reinitialize the palette with the new number of steps
     pluginState.paletteData = initializePaletteData(pluginState.baseColor, pluginState.amountOfShades);
+    // Clear original state since we're changing the structure
+    pluginState.originalPaletteData = null;
+    // Reset all formulas since we have a different number of shades
+    pluginState.formulas = {
+      Luminance: { activeCurve: null, curveParams: {}, formulaRange: { from: 0, to: 1 } },
+      Chroma: { activeCurve: null, curveParams: {}, formulaRange: { from: 0, to: 0.4 } },
+      Hue: { activeCurve: null, curveParams: {}, formulaRange: { from: 0, to: 360 } }
+    };
     pluginState = recalculatePalette(pluginState);
     updateUI();
   });
@@ -103,6 +123,11 @@ function setupEventListeners() {
           curveParams: {}
         });
       } else {
+        // Save original state before applying first formula (if not already saved)
+        if (!hasAnyActiveFormula(pluginState)) {
+          pluginState = saveOriginalPaletteState(pluginState);
+        }
+
         // Activate the new curve for this property
         pluginState = updateActivePropertyFormula(pluginState, {
           activeCurve: btnText,
@@ -169,6 +194,12 @@ function setupEventListeners() {
       colors: palette,
       createAssets: uiState.createAssets
     }, "*");
+  });
+
+  // Reset button
+  resetBtn.addEventListener('click', () => {
+    pluginState = resetPaletteToOriginal(pluginState);
+    updateUI();
   });
 }
 
@@ -561,20 +592,25 @@ function updateModeUI() {
   // Formula buttons (functionLeft) are always shown
   functionLeft.style.display = 'block';
 
+  // Show/hide reset button based on whether any formulas have been applied
+  if (pluginState.originalPaletteData !== null) {
+    resetBtn.style.display = 'block';
+  } else {
+    resetBtn.style.display = 'none';
+  }
+
   if (currentFormula.activeCurve === null) {
     // No active formula for the current property: show placeholder and hide controls
     functionRight.style.display = 'none';
     functionCenter.style.display = 'flex'; // Keep visible to show the placeholder
     formulaDisplay.style.display = 'none';
     formulaPlaceholder.style.display = 'block';
-    formulaIcon.classList.remove('active');
   } else {
     // With active formula for the current property: show controls and hide placeholder
     functionRight.style.display = 'block';
     functionCenter.style.display = 'flex';
     formulaDisplay.style.display = 'block';
     formulaPlaceholder.style.display = 'none';
-    formulaIcon.classList.add('active');
   }
 }
 
