@@ -165,8 +165,29 @@ function createPaletteRectangles(colors: string[]) {
   }
 }
 
+// Global counter for palette groups
+let paletteCounter = 0;
+
+// Generate unique group name for new palette
+function generateUniqueGroupName(): string {
+  const baseGroupName = 'new-palette';
+  
+  if (paletteCounter === 0) {
+    // First palette, use base name
+    paletteCounter++;
+    return baseGroupName;
+  } else {
+    // Subsequent palettes, use incremental names
+    const groupName = `${baseGroupName}-${paletteCounter}`;
+    paletteCounter++;
+    return groupName;
+  }
+}
+
 // Add colors to document color library
-function addColorsToLibrary(colors: string[], groupName: string = 'new-palette') {
+function addColorsToLibrary(colors: string[], groupName?: string) {
+  // Generate unique group name if not provided
+  const finalGroupName = groupName || generateUniqueGroupName();
   const assets: Array<{name: string, color: string, groupName: string}> = [];
   
   // Generate names for the entire palette considering hue consistency
@@ -174,7 +195,7 @@ function addColorsToLibrary(colors: string[], groupName: string = 'new-palette')
   
   colors.forEach((color, index) => {
     const colorName = colorNames[index];
-    const fullAssetName = `${groupName}/${colorName}`;
+    const fullAssetName = `${finalGroupName}/${colorName}`;
     
     try {
       // Create the color asset in Penpot's library
@@ -185,7 +206,7 @@ function addColorsToLibrary(colors: string[], groupName: string = 'new-palette')
       assets.push({
         name: colorName,
         color: color,
-        groupName: groupName
+        groupName: finalGroupName
       });
       
       console.log(`✅ Created color asset: ${fullAssetName} (${color})`);
@@ -358,7 +379,8 @@ penpot.ui.onMessage<PaletteMessage>((message) => {
         // Add to color library if requested
         if (message.createAssets) {
           try {
-            const assets = addColorsToLibrary(message.colors, 'new-palette');
+            const assets = addColorsToLibrary(message.colors);
+            const groupName = assets.length > 0 ? assets[0].groupName : 'new-palette';
             console.log(`✅ Successfully created ${assets.length} color assets`);
             
             // Show success message with details
@@ -366,7 +388,7 @@ penpot.ui.onMessage<PaletteMessage>((message) => {
               type: 'palette-added',
               success: true,
               assetsCreated: assets.length,
-              message: `Created ${assets.length} color assets in "new-palette" group`
+              message: `Created ${assets.length} color assets in "${groupName}" group`
             });
           } catch (error) {
             console.error('❌ Error creating color assets:', error);
